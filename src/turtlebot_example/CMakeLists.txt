@@ -115,6 +115,7 @@ add_compile_options(-std=c++11)
   src/squareNode.cpp
   src/Pose.cpp
   src/PID.cpp
+  src/SquareCommander.cpp
 )
 
 

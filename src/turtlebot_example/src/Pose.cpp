@@ -27,13 +27,17 @@ void Pose::poseCallback(
   m_p.x = msg->pose.pose.position.x;
   m_p.y = msg->pose.pose.position.y;
   m_p.yaw = tf::getYaw(msg->pose.pose.orientation);
-  std::cout << "x " << m_p.x << std::endl;
+  m_gotPose = true;
 }
 
-PoseData_t Pose::getPose(
-
+bool Pose::getPose(
+  PoseData_t * pose
 )
 {
   std::lock_guard<std::mutex> g(m_mtx);
-  return m_p;
+  if (pose != NULL) {
+    *pose = m_p;
+    return m_gotPose;
+  }
+  throw std::invalid_argument("Pose: NULL value.");
 }

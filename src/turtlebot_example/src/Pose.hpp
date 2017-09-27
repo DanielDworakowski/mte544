@@ -1,11 +1,14 @@
 #pragma once
-
+//
+// Standard.
+#include <mutex>
+#include <stdint.h>
+//
+// Ros.
 #include <ros/ros.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/Twist.h>
 #include <tf/transform_datatypes.h>
-#include <stdint.h>
-#include <mutex>
 //
 // Pose data.
 typedef struct {
@@ -25,7 +28,7 @@ public:
   virtual ~Pose();
   //
   // Get fn.
-  PoseData_t getPose();
+  bool getPose(PoseData_t *);
 private:
   //
   // Handle.
@@ -42,4 +45,7 @@ private:
   //
   // Guard for updates.
   std::mutex m_mtx;
+  //
+  // Have gotten a pose.
+  bool m_gotPose = false;
 };

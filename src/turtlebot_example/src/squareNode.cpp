@@ -13,8 +13,7 @@
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/Twist.h>
 #include <tf/transform_datatypes.h>
-#include <Pose.hpp>
-#include <PID.hpp>
+#include <SquareCommander.hpp>
 
 int main(int argc, char **argv)
 {
@@ -23,14 +22,8 @@ int main(int argc, char **argv)
   ros::init(argc,argv,"main_control");
   ros::NodeHandle n;
   //
-  //Subscribe to the desired topics and assign callbacks
-  Pose pose(n);
-  //
-  //Setup topics to Publish from this node /cmd_vel_mux/input/teleop
-  ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/teleop", 1);
-  //
-  //Velocity control variable
-  geometry_msgs::Twist vel;
+  // What deals with driving in a square.
+  SquareCommander cmd(n, .5);
   //
   //Set the loop rate
   ros::Rate loop_rate(20);    //20Hz update rate
@@ -39,10 +32,7 @@ int main(int argc, char **argv)
   while (ros::ok()) {
   	loop_rate.sleep();
   	ros::spinOnce();
-
-    vel.linear.x = 0.2; // set linear speed
-    vel.angular.z = 0.2; // set angular speed
-  	velocity_publisher.publish(vel); // Publish the command velocity
+    cmd.step();
   }
 
   return 0;
