@@ -111,7 +111,11 @@ add_compile_options(-std=c++11)
 ## Declare a cpp executable
  add_executable(turtlebot_example_node src/turtlebot_example_node.cpp)
 
- add_executable(squareNode src/squareNode.cpp src/Pose.cpp)
+ add_executable(squareNode
+  src/squareNode.cpp
+  src/Pose.cpp
+  src/PID.cpp
+)
 
 
 ## Add cmake target dependencies of the executable/library

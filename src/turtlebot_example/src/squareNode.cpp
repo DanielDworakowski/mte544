@@ -14,18 +14,7 @@
 #include <geometry_msgs/Twist.h>
 #include <tf/transform_datatypes.h>
 #include <Pose.hpp>
-
-
-//Callback function for the Position topic
-//void pose_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg)
-//{
-	//This function is called when a new position message is received
-
-//	double X = msg->pose.pose.position.x; // Robot X psotition
-//	double Y = msg->pose.pose.position.y; // Robot Y psotition
-//	double Yaw = tf::getYaw(msg->pose.pose.orientation); // Robot Yaw
-
-//}
+#include <PID.hpp>
 
 int main(int argc, char **argv)
 {
