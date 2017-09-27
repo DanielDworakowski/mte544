@@ -23,7 +23,7 @@ int main(int argc, char **argv)
   ros::NodeHandle n;
   //
   // What deals with driving in a square.
-  SquareCommander cmd(n, .5);
+  SquareCommander cmd(n, .2);
   //
   //Set the loop rate
   ros::Rate loop_rate(20);    //20Hz update rate
