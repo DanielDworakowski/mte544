@@ -49,5 +49,16 @@ RUN echo "deb-src http://us.archive.ubuntu.com/ubuntu/ xenial-backports main res
 RUN echo "deb-src http://security.ubuntu.com/ubuntu xenial-security main restricted" | tee /etc/apt/sources.list.d/docker.list
 RUN apt-get -y install ros-kinetic-turtlebot-gazebo ros-kinetic-desktop-full ros-kinetic-turtlebot-rviz-launchers  ros-kinetic-warehouse-ros
 
+# User
+RUN useradd -ms /bin/bash user
+RUN echo 'user:1234' | chpasswd
+RUN chown user /home/user
+RUN usermod -a -G sudo user
+
+# workspace
+RUN mkdir /home/user/workspace
+WORKDIR /home/user/workspace
+RUN chown -R user /home/user
+
 # Set up environment
 RUN echo "source /opt/ros/kinetic/setup.bash" >> ~/.bashrc
