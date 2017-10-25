@@ -33,40 +33,56 @@ double g_ips_y;
 double g_ips_yaw;
 //
 // Matricies.
+#define NUM_STATES 3
+#define F (20.0)
+#define PERIOD (1/F)
+
+enum MeasType {
+  MEAS_ODOM,
+  MEAS_IPS
+};
+
 uint32_t g_nParticles = 4;
 Eigen::MatrixXd g_particles(3, g_nParticles);
 Eigen::MatrixXd g_particlesPred(3, g_nParticles);
 Eigen::MatrixXd g_w(1, g_nParticles);
 //
 // Motion.
-Eigen::MatrixXd g_Amat = Eigen::MatrixXd::Identity(3,3);
-Eigen::MatrixXd g_Bmat = Eigen::MatrixXd::Identity(3,3); //properly size this.
-Eigen::MatrixXd g_Rmat = Eigen::MatrixXd::Identity(3,3);
+Eigen::MatrixXd g_Amat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
+Eigen::MatrixXd g_Bmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES); //properly size this.
+Eigen::MatrixXd g_Rmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
 //
 // Measurement.
-Eigen::MatrixXd g_Cmat = Eigen::MatrixXd::Identity(3,3);
-Eigen::MatrixXd g_Qmat = Eigen::MatrixXd::Identity(3,3);
-Eigen::MatrixXd g_Umat = Eigen::MatrixXd::Zero(3,1); //properly size this.
-Eigen::MatrixXd g_Meas = Eigen::MatrixXd::Zero(3,1);
+Eigen::MatrixXd g_Cmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
+Eigen::MatrixXd g_Qmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1;
+Eigen::MatrixXd g_Umat = Eigen::MatrixXd::Zero(NUM_STATES, 1); //properly size this.
+Eigen::MatrixXd g_Meas = Eigen::MatrixXd::Zero(NUM_STATES, 1);
 //
 // Uniform dist generator.
 std::default_random_engine g_generator;
 std::uniform_real_distribution<double> g_uniform(0.0,1.0);
 //
+// Normal Dist generator.
+Eigen::EigenMultivariateNormal<Eigen::MatrixXd::Scalar> g_normMatGen(Eigen::MatrixXd::Zero(NUM_STATES,1), Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES));
+//
 // Mutex for reconfigure.
 std::mutex g_mutex;
+// 
+// Indicate if there was a new measurement. 
+bool g_newOdom = false;
+bool g_newIPS = false;
 
 short sgn(int x) { return x >= 0 ? 1 : -1; }
 
 void reconfigureCallback(turtlebot_example::lab2Config &config, uint32_t level)
 {
+  config.nParticles = 20;
   std::lock_guard<std::mutex> lock(g_mutex);
-  g_particles = Eigen::MatrixXd::Random(3, config.nParticles);
+  g_particles = Eigen::MatrixXd::Random(NUM_STATES, config.nParticles);
   g_particles.topRows(2) *= config.posPriorRange;
   g_particles.row(2) *= config.thetaPriorRange;
-  g_particlesPred = Eigen::MatrixXd::Zero(3, config.nParticles);
+  g_particlesPred = Eigen::MatrixXd::Zero(NUM_STATES, config.nParticles);
   g_w = Eigen::MatrixXd::Zero(1, config.nParticles);
-
 }
 
 //Callback function for the Position topic (SIMULATION)
@@ -75,10 +91,11 @@ void pose_callback(const gazebo_msgs::ModelStates& msg)
     uint32_t i;
     for(i = 0; i < msg.name.size(); i++) if(msg.name[i] == "mobile_base") break;
 
-    g_ips_x = msg.pose[i].position.x ;
-    g_ips_y = msg.pose[i].position.y ;
-    g_ips_yaw = tf::getYaw(msg.pose[i].orientation);
-
+    static auto firstPose = msg.pose[i];
+    g_ips_x = msg.pose[i].position.x - firstPose.position.x;
+    g_ips_y = msg.pose[i].position.y - firstPose.position.y;
+    g_ips_yaw = tf::getYaw(msg.pose[i].orientation) - tf::getYaw(firstPose.orientation);
+    g_newIPS = true;
 }
 
 //Callback function for the Position topic (LIVE)
@@ -140,25 +157,40 @@ void bresenham(int x0, int y0, int x1, int y1, std::vector<int>& x, std::vector<
     }
 }
 
-//
-// implements particle filtering.
-void particleFilter()
+// 
+// Implements measurement updates.
+void measUpdate(MeasType type) 
 {
-  std::cout << "-----------------\n";
-  std::lock_guard<std::mutex> lock(g_mutex);
-  std::cout << "Amat\n" << g_Amat << std::endl;
-  std::cout << "g_particles\n" << g_particles << std::endl;
-  std::cout << "g_particlescol(0)\n" << g_particles.col(0) << std::endl;
-  std::cout << "amat*g_particlescol(0)\n" << g_Amat * g_particles.col(0) << std::endl;
-  std::cout << "g_Bmat\n" << g_Bmat << std::endl;
-  std::cout << "g_Umat\n" << g_Umat << std::endl;
-  for (uint32_t part = 0; part < g_particles.cols(); ++part) {
-    Eigen::MatrixXd e = g_Rmat.array().sqrt() /* Eigen::MatrixXd::Ones(3,1)*/ /* random normal*/;
-    // std::cout << "e:\n" << e * Eigen::MatrixXd::Ones(3,1) << std::endl;
-    e = e * Eigen::MatrixXd::Ones(3,1); // remove
-    g_particlesPred.col(part) = g_Amat * g_particles.col(part) + g_Bmat * g_Umat + e;
-    // g_w.col(part) = normpdf(g_Meas, g_Cmat * g_particlesPred.col(part), g_Qmat);
+
+  // for1 each of meas types.
+  // if meas recived
+  // get Cmat
+  // for2
+  Eigen::MatrixXd qMeas;
+  Eigen::MatrixXd meas;
+  qMeas.resizeLike(g_Qmat);
+  meas.resizeLike(g_Meas);
+  switch (type) {
+    case MEAS_IPS:
+      // unkown cov.
+      meas(0) = g_ips_x;
+      meas(1) = g_ips_y;
+      meas(2) = g_ips_yaw;
+      qMeas = g_Qmat;
+    break;
+    case MEAS_ODOM:
+      // meas(0)
+    break;
   }
+  //
+  // Update the weights. 
+  for (uint32_t part = 0; part < g_particles.cols(); ++part) {
+    g_w.col(part) = normpdf<Eigen::MatrixXd::Scalar>(meas, g_Cmat * g_particlesPred.col(part), qMeas);
+  }
+
+  std::cout << "Meas:\n" << meas << std::endl;
+
+  std::cout << "g_w\n" << g_w << std::endl;
   auto W_mat = cumsum1D(g_w);
   std::cout << "W_mat\n" << W_mat << std::endl;
   //
@@ -169,18 +201,87 @@ void particleFilter()
     //
     // Too lazy to implement a binary search...
     uint32_t firstLarger = W_mat.cols() - 1; // last index.
-    for (uint32_t w_idx; w_idx < W_mat.cols(); ++w_idx) {
+    for (uint32_t w_idx = 0; w_idx < W_mat.cols(); ++w_idx) {
       if (W_mat.col(w_idx)(0) > seed){
         firstLarger = w_idx;
         break;
       }
     }
+    std::cout << "first larger " << firstLarger << std::endl;
     g_particles.col(part) = g_particlesPred.col(firstLarger);
   }
-  Eigen::MatrixXd centered = g_particles.colwise() - g_particles.rowwise().mean();
+  std::cout << "particles:\n" << g_particles << std::endl;
+}
+
+//
+// implements particle filtering.
+void particleFilter()
+{
+  std::cout << "-----------------\n";
+  std::lock_guard<std::mutex> lock(g_mutex);
+  std::cout << "Amat\n" << g_Amat << std::endl;
+  std::cout << "g_particles\n" << g_particles << std::endl;
+  std::cout << "g_Umat\n" << g_Umat << std::endl;
+  //
+  // Motion model.
+  for (uint32_t part = 0; part < g_particles.cols(); ++part) {
+    Eigen::MatrixXd e = g_Rmat.array().sqrt();
+    e *= g_normMatGen.samples(1);
+    //
+    // Ensure that all angles are -pi to pi.
+    // g_particlesPred.col(part) = g_Amat * g_particles.col(part) + g_Bmat * g_Umat + e;
+    
+    auto partCol = g_particles.col(part);
+    auto partPredCol = g_particlesPred.col(part);
+    partPredCol(0) = partCol(0) + g_Umat(0) * std::cos(partCol(2)) * PERIOD;
+    partPredCol(1) = partCol(1) + g_Umat(1) * std::sin(partCol(2)) * PERIOD;
+    partPredCol(2) = partCol(2) + g_Umat(2) * PERIOD;
+    partPredCol(2) = floatMod(partCol(2) + M_PI, 2 * M_PI) - M_PI;
+    g_particlesPred.col(part) = partPredCol /*+ e*/;
+
+      // move and do for2 loop
+      // g_w.col(part) = normpdf<Eigen::MatrixXd::Scalar>(g_Meas, g_Cmat * g_particlesPred.col(part), g_Qmat);
+  }
+  // if ips updated
+  if (g_newIPS) {
+    std::cout << "IPS" << std::endl;
+    measUpdate(MEAS_IPS);
+    g_newIPS = false;
+  }
+  if (g_newOdom) {
+    std::cout << "ODOM" << std::endl;
+    g_particlesPred = g_particles;
+    measUpdate(MEAS_ODOM);
+    g_newOdom = false;
+  }
+  // for1 each of meas types.
+  // if meas recived
+  // get Cmat
+  // for2
+  // std::cout << "g_w\n" << g_w << std::endl;
+  // auto W_mat = cumsum1D(g_w);
+  // std::cout << "W_mat\n" << W_mat << std::endl;
+  // //
+  // // Importance sampling.
+  // double maxW = W_mat(g_particles.cols() - 1);
+  // for (uint32_t part = 0; part < g_particles.cols(); ++part) {
+  //   Eigen::MatrixXd::Scalar seed = maxW * g_uniform(g_generator);
+  //   //
+  //   // Too lazy to implement a binary search...
+  //   uint32_t firstLarger = W_mat.cols() - 1; // last index.
+  //   for (uint32_t w_idx; w_idx < W_mat.cols(); ++w_idx) {
+  //     if (W_mat.col(w_idx)(0) > seed){
+  //       firstLarger = w_idx;
+  //       break;
+  //     }
+  //   }
+  //   g_particles.col(part) = g_particlesPred.col(firstLarger);
+  // }
+  //end for
+  Eigen::MatrixXd centered = g_particles.rowwise() - g_particles.colwise().mean();
   Eigen::MatrixXd cov = (centered.adjoint() * centered) / double(g_particles.rows() - 1);
-  std::cout << "Mean X: " << g_particles.rowwise().mean() << std::endl;
-  std::cout << "Var X: " << cov << std::endl;
+  std::cout << "Mean X:\n" << g_particles.rowwise().mean() << std::endl;
+  // std::cout << "Var X:\n" << cov << std::endl;
 }
 
 int main(int argc, char **argv)
@@ -208,19 +309,20 @@ int main(int argc, char **argv)
   geometry_msgs::Twist vel;
   //
   //Set the loop rate
-  ros::Rate loop_rate(20);    //20Hz update rate
-  //
-  // Matrix initialization
-
-
+  ros::Rate loop_rate(F);    //20Hz update rate
+  // 
+  // ROS loop.
   while (ros::ok()) {
     //
     // Looper.
   	loop_rate.sleep(); //Maintain the loop rate
   	ros::spinOnce();   //Check for new messages
   	//Main loop code goes here:
-  	vel.linear.x = 0.1; // set linear speed
-  	vel.angular.z = 0.3; // set angular speed
+  	// vel.linear.x = 0.1; // set linear speed
+  	// vel.angular.z = 0.3; // set angular speed
+
+    vel.linear.x = 0.0;
+    vel.angular.z = 0.0;
 
   	velocity_publisher.publish(vel); // Publish the command velocity
 
