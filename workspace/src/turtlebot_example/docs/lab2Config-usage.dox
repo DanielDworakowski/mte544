@@ -1,0 +1,9 @@
+\subsubsection usage Usage
+\verbatim
+<node name="dynamic_reconfigure_node" pkg="turtlebot_example" type="dynamic_reconfigure_node">
+  <param name="nParticles" type="int" value="4" />
+  <param name="posPriorRange" type="double" value="1.0" />
+  <param name="thetaPriorRange" type="double" value="3.14159265359" />
+</node>
+\endverbatim
+

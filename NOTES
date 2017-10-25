@@ -1,0 +1,3 @@
+#
+# Run ros with gdb
+rosrun --prefix 'gdb' turtlebot_example lab2_particle

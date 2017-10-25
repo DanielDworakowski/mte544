@@ -1,0 +1,8 @@
+\subsubsection parameters ROS parameters
+
+Reads and maintains the following parameters on the ROS server
+
+- \b "~nParticles" : \b [int] nParticles. min: 1, default: 4, max: 10000
+- \b "~posPriorRange" : \b [double] posPriorRange. min: 0.0, default: 1.0, max: 10.0
+- \b "~thetaPriorRange" : \b [double] thetaPriorRange. min: 0.0, default: 3.14159265359, max: 3.14159265359
+

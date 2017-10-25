@@ -11,7 +11,10 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   tf
+  dynamic_reconfigure
 )
+
+find_package (Eigen3 REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -82,11 +85,18 @@ find_package(catkin REQUIRED COMPONENTS
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
+set(_output_cpp ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_INCLUDE_DESTINATION}/${_cfgonly}Config.h)
+generate_dynamic_reconfigure_options(
+  cfg/lab2.cfg
+)
+set(CMAKE_BUILD_TYPE Debug)
+
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES turtlebot_example
 #  CATKIN_DEPENDS geometry_msgs roscpp rospy sensor_msgs std_msgs tf
 #  DEPENDS system_lib
+ DEPENDS EIGEN3
 )
 
 ###########
@@ -98,10 +108,12 @@ catkin_package(
 # include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
   src/
+  cfg/
 )
 
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++11 -Wall) # -O3
 
 ## Declare a cpp library
 # add_library(turtlebot_example
@@ -109,29 +121,48 @@ add_compile_options(-std=c++11)
 # )
 
 ## Declare a cpp executable
- add_executable(turtlebot_example_node src/turtlebot_example_node.cpp)
+# add_executable(turtlebot_example_node src/turtlebot_example_node.cpp)
+#
+# add_executable(squareNode
+#   src/squareNode.cpp
+#   src/Pose.cpp
+#   src/PID.cpp
+#   src/SquareCommander.cpp
+# )
+#
+# add_executable(exampleNode2
+#   src/turtlebot_example_node_lab2.cpp
+# )
+#
 
- add_executable(squareNode
-  src/squareNode.cpp
-  src/Pose.cpp
-  src/PID.cpp
-  src/SquareCommander.cpp
+add_executable(lab2_particle
+  src/particleFilterNode.cpp
 )
-
+#
+# add_dependencies(lab2_particle ${PROJECT_NAME}_gencfg)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(turtlebot_example_node turtlebot_example_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
- target_link_libraries(turtlebot_example_node
-   ${catkin_LIBRARIES}
- )
+ # target_link_libraries(turtlebot_example_node
+ #   ${catkin_LIBRARIES}
+ # )
+ #
+ # target_link_libraries(squareNode
+ #   ${catkin_LIBRARIES}
+ # )
+ #
+ # target_link_libraries(exampleNode2
+ #   ${catkin_LIBRARIES}
+ #   ${EIGEN3_LIBRARIES}
+ # )
 
- target_link_libraries(squareNode
+ target_link_libraries(lab2_particle
    ${catkin_LIBRARIES}
+   ${EIGEN3_LIBRARIES}
  )
-
 
 #############
 ## Install ##
