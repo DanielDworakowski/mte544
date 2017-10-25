@@ -63,7 +63,7 @@ std::default_random_engine g_generator;
 std::uniform_real_distribution<double> g_uniform(0.0,1.0);
 //
 // Normal Dist generator.
-Eigen::EigenMultivariateNormal<Eigen::MatrixXd::Scalar> g_normMatGen(Eigen::MatrixXd::Zero(NUM_STATES,1), Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES));
+Eigen::EigenMultivariateNormal<Eigen::MatrixXd::Scalar> g_normMatGen(Eigen::MatrixXd::Zero(NUM_STATES,1), Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1e-4);
 //
 // Mutex for reconfigure.
 std::mutex g_mutex;
@@ -76,7 +76,8 @@ short sgn(int x) { return x >= 0 ? 1 : -1; }
 
 void reconfigureCallback(turtlebot_example::lab2Config &config, uint32_t level)
 {
-  config.nParticles = 10;
+  config.nParticles = 100;
+  config.thetaPriorRange = 1;
   std::lock_guard<std::mutex> lock(g_mutex);
   g_particles = Eigen::MatrixXd::Random(NUM_STATES, config.nParticles);
   g_particles.topRows(2) *= config.posPriorRange;
@@ -95,6 +96,7 @@ void pose_callback(const gazebo_msgs::ModelStates& msg)
     g_ips_x = msg.pose[i].position.x - firstPose.position.x;
     g_ips_y = msg.pose[i].position.y - firstPose.position.y;
     g_ips_yaw = tf::getYaw(msg.pose[i].orientation) - tf::getYaw(firstPose.orientation);
+    g_ips_yaw = floatMod(g_ips_yaw + M_PI, 2 * M_PI) - M_PI;
     g_newIPS = true;
 }
 
@@ -187,12 +189,7 @@ void measUpdate(MeasType type)
   for (uint32_t part = 0; part < g_particles.cols(); ++part) {
     g_w.col(part) = normpdf<Eigen::MatrixXd::Scalar>(meas, g_Cmat * g_particlesPred.col(part), qMeas);
   }
-
-  std::cout << "Meas:\n" << meas << std::endl;
-
-  std::cout << "g_w\n" << g_w << std::endl;
   auto W_mat = cumsum1D(g_w);
-  std::cout << "W_mat\n" << W_mat << std::endl;
   //
   // Importance sampling.
   double maxW = W_mat(g_particles.cols() - 1);
@@ -207,10 +204,9 @@ void measUpdate(MeasType type)
         break;
       }
     }
-    std::cout << "first larger " << firstLarger << std::endl;
     g_particles.col(part) = g_particlesPred.col(firstLarger);
   }
-  std::cout << "particles:\n" << g_particles << std::endl;
+  std::cout << "meas: \n" << meas << std::endl;
 }
 
 //
@@ -219,9 +215,6 @@ void particleFilter()
 {
   std::cout << "-----------------\n";
   std::lock_guard<std::mutex> lock(g_mutex);
-  std::cout << "Amat\n" << g_Amat << std::endl;
-  std::cout << "g_particles\n" << g_particles << std::endl;
-  std::cout << "g_Umat\n" << g_Umat << std::endl;
   //
   // Motion model.
   for (uint32_t part = 0; part < g_particles.cols(); ++part) {
@@ -237,47 +230,18 @@ void particleFilter()
     partPredCol(1) = partCol(1) + g_Umat(1) * std::sin(partCol(2)) * PERIOD;
     partPredCol(2) = partCol(2) + g_Umat(2) * PERIOD;
     partPredCol(2) = floatMod(partPredCol(2) + M_PI, 2 * M_PI) - M_PI;
-    g_particlesPred.col(part) = partPredCol /*+ e*/;
-
-      // move and do for2 loop
-      // g_w.col(part) = normpdf<Eigen::MatrixXd::Scalar>(g_Meas, g_Cmat * g_particlesPred.col(part), g_Qmat);
+    g_particlesPred.col(part) = partPredCol + e;
   }
   // if ips updated
   if (g_newIPS) {
-    std::cout << "IPS" << std::endl;
     measUpdate(MEAS_IPS);
     g_newIPS = false;
   }
   if (g_newOdom) {
-    std::cout << "ODOM" << std::endl;
     g_particlesPred = g_particles;
     measUpdate(MEAS_ODOM);
     g_newOdom = false;
   }
-  // for1 each of meas types.
-  // if meas recived
-  // get Cmat
-  // for2
-  // std::cout << "g_w\n" << g_w << std::endl;
-  // auto W_mat = cumsum1D(g_w);
-  // std::cout << "W_mat\n" << W_mat << std::endl;
-  // //
-  // // Importance sampling.
-  // double maxW = W_mat(g_particles.cols() - 1);
-  // for (uint32_t part = 0; part < g_particles.cols(); ++part) {
-  //   Eigen::MatrixXd::Scalar seed = maxW * g_uniform(g_generator);
-  //   //
-  //   // Too lazy to implement a binary search...
-  //   uint32_t firstLarger = W_mat.cols() - 1; // last index.
-  //   for (uint32_t w_idx; w_idx < W_mat.cols(); ++w_idx) {
-  //     if (W_mat.col(w_idx)(0) > seed){
-  //       firstLarger = w_idx;
-  //       break;
-  //     }
-  //   }
-  //   g_particles.col(part) = g_particlesPred.col(firstLarger);
-  // }
-  //end for
   Eigen::MatrixXd centered = g_particles.rowwise() - g_particles.colwise().mean();
   Eigen::MatrixXd cov = (centered.adjoint() * centered) / double(g_particles.rows() - 1);
   std::cout << "Mean X:\n" << g_particles.rowwise().mean() << std::endl;
@@ -321,8 +285,10 @@ int main(int argc, char **argv)
   	// vel.linear.x = 0.1; // set linear speed
   	// vel.angular.z = 0.3; // set angular speed
 
-    vel.linear.x = 0.0;
-    vel.angular.z = 0.0;
+    vel.linear.x = 0.1;
+    vel.angular.z = 0.3;
+    g_Umat(0) = 0.1;
+    g_Umat(2) = 0.3;
 
   	velocity_publisher.publish(vel); // Publish the command velocity
 
