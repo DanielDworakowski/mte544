@@ -137,7 +137,13 @@ add_compile_options(-std=c++11 -Wall) # -O3
 
 add_executable(lab2_particle
   src/particleFilterNode.cpp
+  src/Visualizer.cpp
 )
+
+# add_executable(lab2_viz
+#   src/Visualizer.cpp
+# )
+
 #
 # add_dependencies(lab2_particle ${PROJECT_NAME}_gencfg)
 
@@ -163,6 +169,11 @@ add_executable(lab2_particle
    ${catkin_LIBRARIES}
    ${EIGEN3_LIBRARIES}
  )
+
+ # target_link_libraries(lab2_viz
+ #   ${catkin_LIBRARIES}
+ #   ${EIGEN3_LIBRARIES}
+ # )
 
 #############
 ## Install ##
