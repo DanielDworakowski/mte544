@@ -49,20 +49,20 @@ void Visualizer::viz_pose_callback(const gazebo_msgs::ModelStates& msg)
     path_pub.publish(path);
 }
 
-int main(int argc, char **argv)
-{
-	//Initialize the ROS framework
-    ros::init(argc,argv,"main_control");
-    ros::NodeHandle n;
-   	Visualizer viz = Visualizer(n);
-    ros::Rate loop_rate(20);    //20Hz update rate
+// int main(int argc, char **argv)
+// {
+// 	//Initialize the ROS framework
+//     ros::init(argc,argv,"main_control");
+//     ros::NodeHandle n;
+//    	Visualizer viz = Visualizer(n);
+//     ros::Rate loop_rate(20);    //20Hz update rate
 
-    while (ros::ok())
-    {
-    	loop_rate.sleep(); //Maintain the loop rate
-    	ros::spinOnce();   //Check for new messages
-    	Eigen::MatrixXd g_particles = Eigen::MatrixXd::Random(3, 20);
-    	viz.visualize_particle(g_particles);
-    }
-    return 0;
-}
+//     while (ros::ok())
+//     {
+//     	loop_rate.sleep(); //Maintain the loop rate
+//     	ros::spinOnce();   //Check for new messages
+//     	Eigen::MatrixXd g_particles = Eigen::MatrixXd::Random(3, 20);
+//     	viz.visualize_particle(g_particles);
+//     }
+//     return 0;
+// }
