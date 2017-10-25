@@ -76,7 +76,7 @@ short sgn(int x) { return x >= 0 ? 1 : -1; }
 
 void reconfigureCallback(turtlebot_example::lab2Config &config, uint32_t level)
 {
-  config.nParticles = 20;
+  config.nParticles = 10;
   std::lock_guard<std::mutex> lock(g_mutex);
   g_particles = Eigen::MatrixXd::Random(NUM_STATES, config.nParticles);
   g_particles.topRows(2) *= config.posPriorRange;
@@ -236,7 +236,7 @@ void particleFilter()
     partPredCol(0) = partCol(0) + g_Umat(0) * std::cos(partCol(2)) * PERIOD;
     partPredCol(1) = partCol(1) + g_Umat(1) * std::sin(partCol(2)) * PERIOD;
     partPredCol(2) = partCol(2) + g_Umat(2) * PERIOD;
-    partPredCol(2) = floatMod(partCol(2) + M_PI, 2 * M_PI) - M_PI;
+    partPredCol(2) = floatMod(partPredCol(2) + M_PI, 2 * M_PI) - M_PI;
     g_particlesPred.col(part) = partPredCol /*+ e*/;
 
       // move and do for2 loop
