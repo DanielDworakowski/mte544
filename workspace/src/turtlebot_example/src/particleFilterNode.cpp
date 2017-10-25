@@ -34,6 +34,8 @@ double g_ips_yaw;
 //
 // Matricies.
 #define NUM_STATES 3
+#define F (20.0)
+#define PERIOD (1/F)
 uint32_t g_nParticles = 4;
 Eigen::MatrixXd g_particles(3, g_nParticles);
 Eigen::MatrixXd g_particlesPred(3, g_nParticles);
@@ -156,16 +158,30 @@ void particleFilter()
   std::cout << "amat*g_particlescol(0)\n" << g_Amat * g_particles.col(0) << std::endl;
   std::cout << "g_Bmat\n" << g_Bmat << std::endl;
   std::cout << "g_Umat\n" << g_Umat << std::endl;
+  //
+  // Motion model.
   for (uint32_t part = 0; part < g_particles.cols(); ++part) {
     Eigen::MatrixXd e = g_Rmat.array().sqrt();
     e *= g_normMatGen.samples(1);
     std::cout << "e:\n" << e << std::endl;
     //
-    // Ensure that all y's are -pi to pi.
-    g_particlesPred.col(part) = g_Amat * g_particles.col(part) + g_Bmat * g_Umat + e;
-    g_particlesPred.col(part).array()[NUM_STATES - 1] = floatMod(g_particlesPred.col(part).array()[NUM_STATES - 1] + M_PI, 2 * M_PI) - M_PI;
-    g_w.col(part) = normpdf<Eigen::MatrixXd::Scalar>(g_Meas, g_Cmat * g_particlesPred.col(part), g_Qmat);
+    // Ensure that all angles are -pi to pi.
+    // g_particlesPred.col(part) = g_Amat * g_particles.col(part) + g_Bmat * g_Umat + e;
+    
+    auto partCol = g_particlesPred.col(part);
+    partCol(0) = partCol(0) + g_Umat(0) * std::cos(partCol(2)) * PERIOD;
+    partCol(1) = partCol(1) + g_Umat(1) * std::sin(partCol(2)) * PERIOD;
+    partCol(2) = partCol(2) + g_Umat(2) * PERIOD;
+    partCol(2) = floatMod(partCol(2) + M_PI, 2 * M_PI) - M_PI;
+    g_particlesPred.col(part) = partCol + e;
+
+      // move and do for2 loop
+      g_w.col(part) = normpdf<Eigen::MatrixXd::Scalar>(g_Meas, g_Cmat * g_particlesPred.col(part), g_Qmat);
   }
+  // for1 each of meas types.
+  // if meas recived
+  // get Cmat
+  // for2
   std::cout << "g_w\n" << g_w << std::endl;
   auto W_mat = cumsum1D(g_w);
   std::cout << "W_mat\n" << W_mat << std::endl;
@@ -185,6 +201,7 @@ void particleFilter()
     }
     g_particles.col(part) = g_particlesPred.col(firstLarger);
   }
+  //end for
   Eigen::MatrixXd centered = g_particles.rowwise() - g_particles.colwise().mean();
   Eigen::MatrixXd cov = (centered.adjoint() * centered) / double(g_particles.rows() - 1);
   std::cout << "Mean X:\n" << g_particles.rowwise().mean() << std::endl;
@@ -216,11 +233,9 @@ int main(int argc, char **argv)
   geometry_msgs::Twist vel;
   //
   //Set the loop rate
-  ros::Rate loop_rate(20);    //20Hz update rate
-  //
-  // Matrix initialization
-
-
+  ros::Rate loop_rate(F);    //20Hz update rate
+  // 
+  // ROS loop.
   while (ros::ok()) {
     //
     // Looper.
