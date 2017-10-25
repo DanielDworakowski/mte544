@@ -33,25 +33,29 @@ double g_ips_y;
 double g_ips_yaw;
 //
 // Matricies.
+#define NUM_STATES 3
 uint32_t g_nParticles = 4;
 Eigen::MatrixXd g_particles(3, g_nParticles);
 Eigen::MatrixXd g_particlesPred(3, g_nParticles);
 Eigen::MatrixXd g_w(1, g_nParticles);
 //
 // Motion.
-Eigen::MatrixXd g_Amat = Eigen::MatrixXd::Identity(3,3);
-Eigen::MatrixXd g_Bmat = Eigen::MatrixXd::Identity(3,3); //properly size this.
-Eigen::MatrixXd g_Rmat = Eigen::MatrixXd::Identity(3,3);
+Eigen::MatrixXd g_Amat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
+Eigen::MatrixXd g_Bmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES); //properly size this.
+Eigen::MatrixXd g_Rmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
 //
 // Measurement.
-Eigen::MatrixXd g_Cmat = Eigen::MatrixXd::Identity(3,3);
-Eigen::MatrixXd g_Qmat = Eigen::MatrixXd::Identity(3,3);
-Eigen::MatrixXd g_Umat = Eigen::MatrixXd::Zero(3,1); //properly size this.
-Eigen::MatrixXd g_Meas = Eigen::MatrixXd::Zero(3,1);
+Eigen::MatrixXd g_Cmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
+Eigen::MatrixXd g_Qmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
+Eigen::MatrixXd g_Umat = Eigen::MatrixXd::Zero(NUM_STATES, 1); //properly size this.
+Eigen::MatrixXd g_Meas = Eigen::MatrixXd::Zero(NUM_STATES, 1);
 //
 // Uniform dist generator.
 std::default_random_engine g_generator;
 std::uniform_real_distribution<double> g_uniform(0.0,1.0);
+//
+// Normal Dist generator.
+Eigen::EigenMultivariateNormal<Eigen::MatrixXd::Scalar> g_normMatGen(Eigen::MatrixXd::Zero(NUM_STATES,1), Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES));
 //
 // Mutex for reconfigure.
 std::mutex g_mutex;
@@ -61,10 +65,10 @@ short sgn(int x) { return x >= 0 ? 1 : -1; }
 void reconfigureCallback(turtlebot_example::lab2Config &config, uint32_t level)
 {
   std::lock_guard<std::mutex> lock(g_mutex);
-  g_particles = Eigen::MatrixXd::Random(3, config.nParticles);
+  g_particles = Eigen::MatrixXd::Random(NUM_STATES, config.nParticles);
   g_particles.topRows(2) *= config.posPriorRange;
   g_particles.row(2) *= config.thetaPriorRange;
-  g_particlesPred = Eigen::MatrixXd::Zero(3, config.nParticles);
+  g_particlesPred = Eigen::MatrixXd::Zero(NUM_STATES, config.nParticles);
   g_w = Eigen::MatrixXd::Zero(1, config.nParticles);
 
 }
@@ -153,12 +157,16 @@ void particleFilter()
   std::cout << "g_Bmat\n" << g_Bmat << std::endl;
   std::cout << "g_Umat\n" << g_Umat << std::endl;
   for (uint32_t part = 0; part < g_particles.cols(); ++part) {
-    Eigen::MatrixXd e = g_Rmat.array().sqrt() /* Eigen::MatrixXd::Ones(3,1)*/ /* random normal*/;
-    // std::cout << "e:\n" << e * Eigen::MatrixXd::Ones(3,1) << std::endl;
-    e = e * Eigen::MatrixXd::Ones(3,1); // remove
+    Eigen::MatrixXd e = g_Rmat.array().sqrt();
+    e *= g_normMatGen.samples(1);
+    std::cout << "e:\n" << e << std::endl;
+    //
+    // Ensure that all y's are -pi to pi.
     g_particlesPred.col(part) = g_Amat * g_particles.col(part) + g_Bmat * g_Umat + e;
-    // g_w.col(part) = normpdf(g_Meas, g_Cmat * g_particlesPred.col(part), g_Qmat);
+    g_particlesPred.col(part).array()[NUM_STATES - 1] = floatMod(g_particlesPred.col(part).array()[NUM_STATES - 1] + M_PI, 2 * M_PI) - M_PI;
+    g_w.col(part) = normpdf<Eigen::MatrixXd::Scalar>(g_Meas, g_Cmat * g_particlesPred.col(part), g_Qmat);
   }
+  std::cout << "g_w\n" << g_w << std::endl;
   auto W_mat = cumsum1D(g_w);
   std::cout << "W_mat\n" << W_mat << std::endl;
   //
@@ -177,10 +185,10 @@ void particleFilter()
     }
     g_particles.col(part) = g_particlesPred.col(firstLarger);
   }
-  Eigen::MatrixXd centered = g_particles.colwise() - g_particles.rowwise().mean();
+  Eigen::MatrixXd centered = g_particles.rowwise() - g_particles.colwise().mean();
   Eigen::MatrixXd cov = (centered.adjoint() * centered) / double(g_particles.rows() - 1);
-  std::cout << "Mean X: " << g_particles.rowwise().mean() << std::endl;
-  std::cout << "Var X: " << cov << std::endl;
+  std::cout << "Mean X:\n" << g_particles.rowwise().mean() << std::endl;
+  std::cout << "Var X:\n" << cov << std::endl;
 }
 
 int main(int argc, char **argv)
