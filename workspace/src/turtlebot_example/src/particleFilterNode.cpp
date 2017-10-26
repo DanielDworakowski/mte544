@@ -24,6 +24,7 @@
 
 #include <dynamic_reconfigure/server.h>
 #include "cpp/turtlebot_example/lab2Config.h"
+#include "Visualizer.hpp"
 
 ros::Publisher pose_publisher;
 ros::Publisher marker_pub;
@@ -34,7 +35,7 @@ double g_ips_yaw;
 //
 // Matricies.
 #define NUM_STATES 3
-#define F (20.0)
+#define F (20.0) //20
 #define PERIOD (1/F)
 
 enum MeasType {
@@ -42,6 +43,8 @@ enum MeasType {
   MEAS_IPS
 };
 
+Eigen::VectorXf first_vec(3);
+bool init_pose_set = false;
 uint32_t g_nParticles = 4;
 Eigen::MatrixXd g_particles(3, g_nParticles);
 Eigen::MatrixXd g_particlesPred(3, g_nParticles);
@@ -54,7 +57,7 @@ Eigen::MatrixXd g_Rmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1e-
 //
 // Measurement.
 Eigen::MatrixXd g_Cmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
-Eigen::MatrixXd g_Qmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1;
+Eigen::MatrixXd g_Qmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1e-2;
 Eigen::MatrixXd g_Umat = Eigen::MatrixXd::Zero(NUM_STATES, 1); //properly size this.
 Eigen::MatrixXd g_Meas = Eigen::MatrixXd::Zero(NUM_STATES, 1);
 //
@@ -67,8 +70,8 @@ Eigen::EigenMultivariateNormal<Eigen::MatrixXd::Scalar> g_normMatGen(Eigen::Matr
 //
 // Mutex for reconfigure.
 std::mutex g_mutex;
-// 
-// Indicate if there was a new measurement. 
+//
+// Indicate if there was a new measurement.
 bool g_newOdom = false;
 bool g_newIPS = false;
 
@@ -92,10 +95,15 @@ void pose_callback(const gazebo_msgs::ModelStates& msg)
     uint32_t i;
     for(i = 0; i < msg.name.size(); i++) if(msg.name[i] == "mobile_base") break;
 
-    static auto firstPose = msg.pose[i];
-    g_ips_x = msg.pose[i].position.x - firstPose.position.x;
-    g_ips_y = msg.pose[i].position.y - firstPose.position.y;
-    g_ips_yaw = tf::getYaw(msg.pose[i].orientation) - tf::getYaw(firstPose.orientation);
+    if (!init_pose_set) {
+      first_vec(0) = msg.pose[i].position.x;
+      first_vec(1) = msg.pose[i].position.y;
+      first_vec(2) = tf::getYaw(msg.pose[i].orientation);
+      init_pose_set = true;
+    }
+    g_ips_x = msg.pose[i].position.x - first_vec(0);
+    g_ips_y = msg.pose[i].position.y - first_vec(1);
+    g_ips_yaw = tf::getYaw(msg.pose[i].orientation)- first_vec(2);
     g_ips_yaw = floatMod(g_ips_yaw + M_PI, 2 * M_PI) - M_PI;
     g_newIPS = true;
 }
@@ -159,9 +167,9 @@ void bresenham(int x0, int y0, int x1, int y1, std::vector<int>& x, std::vector<
     }
 }
 
-// 
+//
 // Implements measurement updates.
-void measUpdate(MeasType type) 
+void measUpdate(MeasType type)
 {
 
   // for1 each of meas types.
@@ -185,7 +193,7 @@ void measUpdate(MeasType type)
     break;
   }
   //
-  // Update the weights. 
+  // Update the weights.
   for (uint32_t part = 0; part < g_particles.cols(); ++part) {
     g_w.col(part) = normpdf<Eigen::MatrixXd::Scalar>(meas, g_Cmat * g_particlesPred.col(part), qMeas);
   }
@@ -206,14 +214,14 @@ void measUpdate(MeasType type)
     }
     g_particles.col(part) = g_particlesPred.col(firstLarger);
   }
-  std::cout << "meas: \n" << meas << std::endl;
+  //std::cout << "meas: \n" << meas << std::endl;
 }
 
 //
 // implements particle filtering.
 void particleFilter()
 {
-  std::cout << "-----------------\n";
+  //std::cout << "-----------------\n";
   std::lock_guard<std::mutex> lock(g_mutex);
   //
   // Motion model.
@@ -223,11 +231,11 @@ void particleFilter()
     //
     // Ensure that all angles are -pi to pi.
     // g_particlesPred.col(part) = g_Amat * g_particles.col(part) + g_Bmat * g_Umat + e;
-    
+
     auto partCol = g_particles.col(part);
     auto partPredCol = g_particlesPred.col(part);
     partPredCol(0) = partCol(0) + g_Umat(0) * std::cos(partCol(2)) * PERIOD;
-    partPredCol(1) = partCol(1) + g_Umat(1) * std::sin(partCol(2)) * PERIOD;
+    partPredCol(1) = partCol(1) + g_Umat(0) * std::sin(partCol(2)) * PERIOD;
     partPredCol(2) = partCol(2) + g_Umat(2) * PERIOD;
     partPredCol(2) = floatMod(partPredCol(2) + M_PI, 2 * M_PI) - M_PI;
     g_particlesPred.col(part) = partPredCol + e;
@@ -244,7 +252,7 @@ void particleFilter()
   }
   Eigen::MatrixXd centered = g_particles.rowwise() - g_particles.colwise().mean();
   Eigen::MatrixXd cov = (centered.adjoint() * centered) / double(g_particles.rows() - 1);
-  std::cout << "Mean X:\n" << g_particles.rowwise().mean() << std::endl;
+  //std::cout << "Mean X:\n" << g_particles.rowwise().mean() << std::endl;
   // std::cout << "Var X:\n" << cov << std::endl;
 }
 
@@ -253,6 +261,10 @@ int main(int argc, char **argv)
 	//Initialize the ROS framework
   ros::init(argc,argv,"main_control");
   ros::NodeHandle n;
+  //
+  //Instanciate Vis
+  Visualizer viz(n);
+
   //
   //Subscribe to the desired topics and assign callbacks
   ros::Subscriber pose_sub = n.subscribe("/gazebo/model_states", 1, pose_callback);
@@ -274,7 +286,7 @@ int main(int argc, char **argv)
   //
   //Set the loop rate
   ros::Rate loop_rate(F);    //20Hz update rate
-  // 
+  //
   // ROS loop.
   while (ros::ok()) {
     //
@@ -290,9 +302,14 @@ int main(int argc, char **argv)
     g_Umat(0) = 0.1;
     g_Umat(2) = 0.3;
 
-  	velocity_publisher.publish(vel); // Publish the command velocity
+  	// velocity_publisher.publish(vel); // Publish the command velocity
 
     particleFilter();
+    //std::cout << "g bef:\n" << g_particles << std::endl;
+    //std::cout << "g aft:\n" <<g_particles.colwise()+first_vec.cast<double>()  << std::endl;
+    //std::cout << "vec:\n" <<first_vec  << std::endl;
+
+    viz.visualize_particle(g_particles.colwise()+first_vec.cast<double>()); //vel
   }
 
   return 0;
