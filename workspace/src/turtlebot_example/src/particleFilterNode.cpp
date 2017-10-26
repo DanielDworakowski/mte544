@@ -21,6 +21,7 @@
 #include <mutex>
 #include <random>
 #include "lab2Math.hpp"
+#include "nav_msgs/Odometry.h"
 
 #include <dynamic_reconfigure/server.h>
 #include "cpp/turtlebot_example/lab2Config.h"
@@ -32,6 +33,9 @@ ros::Publisher marker_pub;
 double g_ips_x;
 double g_ips_y;
 double g_ips_yaw;
+double g_odom_x;
+double g_odom_y;
+double g_odom_yaw;
 //
 // Matricies.
 #define NUM_STATES 3
@@ -45,10 +49,12 @@ enum MeasType {
 
 Eigen::VectorXf first_vec(3);
 bool init_pose_set = false;
+bool sampled = false;
 uint32_t g_nParticles = 4;
 Eigen::MatrixXd g_particles(3, g_nParticles);
 Eigen::MatrixXd g_particlesPred(3, g_nParticles);
 Eigen::MatrixXd g_w(1, g_nParticles);
+Eigen::MatrixXd g_odom_cov(3,3);
 //
 // Motion.
 Eigen::MatrixXd g_Amat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
@@ -82,7 +88,7 @@ void reconfigureCallback(turtlebot_example::lab2Config &config, uint32_t level)
   config.nParticles = 100;
   config.thetaPriorRange = 1;
   std::lock_guard<std::mutex> lock(g_mutex);
-  g_particles = Eigen::MatrixXd::Random(NUM_STATES, config.nParticles);
+  g_particles = Eigen::MatrixXd::Random(NUM_STATES, config.nParticles); //.colwise()+first_vec.cast<double>();
   g_particles.topRows(2) *= config.posPriorRange;
   g_particles.row(2) *= config.thetaPriorRange;
   g_particlesPred = Eigen::MatrixXd::Zero(NUM_STATES, config.nParticles);
@@ -100,6 +106,7 @@ void pose_callback(const gazebo_msgs::ModelStates& msg)
       first_vec(1) = msg.pose[i].position.y;
       first_vec(2) = tf::getYaw(msg.pose[i].orientation);
       init_pose_set = true;
+      sampled = true;
     }
     g_ips_x = msg.pose[i].position.x - first_vec(0);
     g_ips_y = msg.pose[i].position.y - first_vec(1);
@@ -118,6 +125,29 @@ void pose_callback(const geometry_msgs::PoseWithCovarianceStamped& msg)
 	g_ips_yaw = tf::getYaw(msg.pose.pose.orientation); // Robot Yaw
 	ROS_DEBUG("pose_callback X: %f Y: %f Yaw: %f", X, Y, Yaw);
 }*/
+
+/**
+ * This tutorial demonstrates simple receipt of messages over the ROS system.
+ */
+ void odom_callback(const nav_msgs::Odometry& msg)
+ {
+   g_odom_x = msg.pose.pose.position.x;
+   g_odom_y = msg.pose.pose.position.y;
+   g_odom_yaw = tf::getYaw(msg.pose.pose.orientation);
+   auto odom_cov_36 = msg.pose.covariance;
+   g_odom_cov(0,0) = odom_cov_36[0];
+   g_odom_cov(0,1) = odom_cov_36[1];
+   g_odom_cov(0,2) = odom_cov_36[5];
+   g_odom_cov(1,0) = odom_cov_36[6];
+   g_odom_cov(1,1) = odom_cov_36[7];
+   g_odom_cov(1,2) = odom_cov_36[11];
+   g_odom_cov(2,0) = odom_cov_36[30];
+   g_odom_cov(2,1) = odom_cov_36[31];
+   g_odom_cov(2,2) = odom_cov_36[35];
+   g_newOdom = true;
+  //  std::cout << "odom cov:\n" << g_odom_cov << std::endl;
+  //  ROS_DEBUG("odom_callback X: %f Y: %f Yaw: %f", X, Y, Yaw);
+ }
 
 //Callback function for the map
 void map_callback(const nav_msgs::OccupancyGrid& msg)
@@ -189,7 +219,10 @@ void measUpdate(MeasType type)
       qMeas = g_Qmat;
     break;
     case MEAS_ODOM:
-      // meas(0)
+      meas(0) = g_odom_x;
+      meas(1) = g_odom_y;
+      meas(2) = g_odom_yaw;
+      qMeas = g_odom_cov;
     break;
   }
   //
@@ -245,11 +278,11 @@ void particleFilter()
     measUpdate(MEAS_IPS);
     g_newIPS = false;
   }
-  if (g_newOdom) {
-    g_particlesPred = g_particles;
-    measUpdate(MEAS_ODOM);
-    g_newOdom = false;
-  }
+  // if (g_newOdom) {
+  //   g_particlesPred = g_particles;
+  //   measUpdate(MEAS_ODOM);
+  //   g_newOdom = false;
+  // }
   Eigen::MatrixXd centered = g_particles.rowwise() - g_particles.colwise().mean();
   Eigen::MatrixXd cov = (centered.adjoint() * centered) / double(g_particles.rows() - 1);
   //std::cout << "Mean X:\n" << g_particles.rowwise().mean() << std::endl;
@@ -274,8 +307,16 @@ int main(int argc, char **argv)
   ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
   pose_publisher = n.advertise<geometry_msgs::PoseStamped>("/pose", 1, true);
   marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 1, true);
+  ros::Subscriber odom_sub = n.subscribe("/odom", 1, odom_callback);
+  //
+  //Set the loop rate
+  ros::Rate loop_rate(F);    //20Hz update rate
   //
   // Initialize dynamic reconfiguration.
+  while (!sampled && !g_newOdom) {
+    loop_rate.sleep(); //Maintain the loop rate
+    ros::spinOnce();   //Check for new messages
+  }
   dynamic_reconfigure::Server<turtlebot_example::lab2Config> srv;
   dynamic_reconfigure::Server<turtlebot_example::lab2Config>::CallbackType f;
   f = boost::bind(&reconfigureCallback, _1, _2);
@@ -283,9 +324,7 @@ int main(int argc, char **argv)
   //
   //Velocity control variable
   geometry_msgs::Twist vel;
-  //
-  //Set the loop rate
-  ros::Rate loop_rate(F);    //20Hz update rate
+
   //
   // ROS loop.
   while (ros::ok()) {
