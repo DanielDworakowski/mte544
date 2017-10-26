@@ -113,7 +113,7 @@ include_directories(
   cfg/
 )
 
-add_compile_options(-std=c++11 -Wall) # -O3
+add_compile_options(-std=c++11 -Wall -Wextra) # -O3
 
 ## Declare a cpp library
 # add_library(turtlebot_example
