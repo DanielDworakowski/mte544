@@ -5,9 +5,9 @@ Visualizer::Visualizer(
   ros::NodeHandle n
 )
 	: m_n(n)
+  , pose_sub(n.subscribe("/gazebo/model_states", 1, &Visualizer::viz_pose_callback,this))
 	, particle_pub(n.advertise<geometry_msgs::PoseArray>("particle_pose_array", 10))
 	, path_pub(n.advertise<geometry_msgs::PoseArray>("path_pose_array", 10))
-	, pose_sub(n.subscribe("/gazebo/model_states", 1, &Visualizer::viz_pose_callback,this))
 {
 }
 
@@ -41,7 +41,7 @@ void Visualizer::visualize_particle(Eigen::MatrixXd particle_matrix)
 
 void Visualizer::viz_pose_callback(const gazebo_msgs::ModelStates& msg)
 {
-	int i;
+	uint32_t i;
     for(i = 0; i < msg.name.size(); i++) if(msg.name[i] == "mobile_base") break;
 	path.header.stamp = ros::Time::now();
     path.header.frame_id = "/odom";

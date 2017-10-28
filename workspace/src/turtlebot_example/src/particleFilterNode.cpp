@@ -66,6 +66,7 @@ Eigen::MatrixXd g_Cmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
 Eigen::MatrixXd g_Qmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1e-2;
 Eigen::MatrixXd g_Umat = Eigen::MatrixXd::Zero(NUM_STATES, 1); //properly size this.
 Eigen::MatrixXd g_Meas = Eigen::MatrixXd::Zero(NUM_STATES, 1);
+Eigen::MatrixXd g_lastOdom = Eigen::MatrixXd::Zero(NUM_STATES, 1);
 //
 // Uniform dist generator.
 std::default_random_engine g_generator;
@@ -85,6 +86,7 @@ short sgn(int x) { return x >= 0 ? 1 : -1; }
 
 void reconfigureCallback(turtlebot_example::lab2Config &config, uint32_t level)
 {
+  (void) level;
   config.nParticles = 100;
   config.thetaPriorRange = 1;
   std::lock_guard<std::mutex> lock(g_mutex);
@@ -98,6 +100,7 @@ void reconfigureCallback(turtlebot_example::lab2Config &config, uint32_t level)
 //Callback function for the Position topic (SIMULATION)
 void pose_callback(const gazebo_msgs::ModelStates& msg)
 {
+  std::lock_guard<std::mutex> lock(g_mutex);
     uint32_t i;
     for(i = 0; i < msg.name.size(); i++) if(msg.name[i] == "mobile_base") break;
 
@@ -131,6 +134,7 @@ void pose_callback(const geometry_msgs::PoseWithCovarianceStamped& msg)
  */
  void odom_callback(const nav_msgs::Odometry& msg)
  {
+   std::lock_guard<std::mutex> lock(g_mutex);
    g_odom_x = msg.pose.pose.position.x;
    g_odom_y = msg.pose.pose.position.y;
    g_odom_yaw = tf::getYaw(msg.pose.pose.orientation);
@@ -149,12 +153,21 @@ void pose_callback(const geometry_msgs::PoseWithCovarianceStamped& msg)
   //  ROS_DEBUG("odom_callback X: %f Y: %f Yaw: %f", X, Y, Yaw);
  }
 
+void cmd_callback(const geometry_msgs::Twist& msg)
+{
+  std::lock_guard<std::mutex> lock(g_mutex);
+  g_Umat(0) = msg.linear.x;
+  g_Umat(2) = msg.angular.z;
+}
+
+//
 //Callback function for the map
 void map_callback(const nav_msgs::OccupancyGrid& msg)
 {
-    //This function is called when a new map is received
+  (void) msg;
+  //This function is called when a new map is received
 
-    //you probably want to save the map into a form which is easy to work with
+  //you probably want to save the map into a form which is easy to work with
 }
 
 //Bresenham line algorithm (pass empty vectors)
@@ -199,7 +212,7 @@ void bresenham(int x0, int y0, int x1, int y1, std::vector<int>& x, std::vector<
 
 //
 // Implements measurement updates.
-void measUpdate(MeasType type)
+void measUpdate(MeasType type, Eigen::MatrixXd lastMean)
 {
 
   // for1 each of meas types.
@@ -216,15 +229,22 @@ void measUpdate(MeasType type)
       meas(0) = g_ips_x;
       meas(1) = g_ips_y;
       meas(2) = g_ips_yaw;
+      // std::cout << "Meas:\n" << meas << std::endl;
       qMeas = g_Qmat;
     break;
     case MEAS_ODOM:
       meas(0) = g_odom_x;
       meas(1) = g_odom_y;
       meas(2) = g_odom_yaw;
+      auto diff = meas - g_lastOdom;
+      // std::cout << "diff " << diff << std::endl;
+      g_lastOdom = meas;
+      meas = lastMean + diff;
+      meas(2) = floatMod(meas(2) + M_PI, 2 * M_PI) - M_PI;
       qMeas = g_odom_cov;
     break;
   }
+  // std::cout << "Meas:\n" << meas << std::endl;
   //
   // Update the weights.
   for (uint32_t part = 0; part < g_particles.cols(); ++part) {
@@ -254,7 +274,7 @@ void measUpdate(MeasType type)
 // implements particle filtering.
 void particleFilter()
 {
-  //std::cout << "-----------------\n";
+  std::cout << "-----------------\n";
   std::lock_guard<std::mutex> lock(g_mutex);
   //
   // Motion model.
@@ -273,19 +293,23 @@ void particleFilter()
     partPredCol(2) = floatMod(partPredCol(2) + M_PI, 2 * M_PI) - M_PI;
     g_particlesPred.col(part) = partPredCol + e;
   }
-  // if ips updated
+  //
+  // Collect the mean measurement for odometry.
+  Eigen::MatrixXd lastMean = g_particles.rowwise().mean();
+  //
+  // Update using both sensors.
   if (g_newIPS) {
-    measUpdate(MEAS_IPS);
+    measUpdate(MEAS_IPS, lastMean);
     g_newIPS = false;
   }
-  // if (g_newOdom) {
-  //   g_particlesPred = g_particles;
-  //   measUpdate(MEAS_ODOM);
-  //   g_newOdom = false;
-  // }
+  if (g_newOdom) {
+    g_particlesPred = g_particles;
+    measUpdate(MEAS_ODOM, lastMean);
+    g_newOdom = false;
+  }
   Eigen::MatrixXd centered = g_particles.rowwise() - g_particles.colwise().mean();
   Eigen::MatrixXd cov = (centered.adjoint() * centered) / double(g_particles.rows() - 1);
-  //std::cout << "Mean X:\n" << g_particles.rowwise().mean() << std::endl;
+  std::cout << "Mean X:\n" << g_particles.rowwise().mean() << std::endl;
   // std::cout << "Var X:\n" << cov << std::endl;
 }
 
@@ -304,10 +328,11 @@ int main(int argc, char **argv)
   ros::Subscriber map_sub = n.subscribe("/map", 1, map_callback);
   //
   //Setup topics to Publish from this node
-  ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
+  // ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
   pose_publisher = n.advertise<geometry_msgs::PoseStamped>("/pose", 1, true);
   marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 1, true);
   ros::Subscriber odom_sub = n.subscribe("/odom", 1, odom_callback);
+  ros::Subscriber cmd_sub = n.subscribe("/mobile_base/commands/velocity", 1, odom_callback);
   //
   //Set the loop rate
   ros::Rate loop_rate(F);    //20Hz update rate
@@ -317,6 +342,10 @@ int main(int argc, char **argv)
     loop_rate.sleep(); //Maintain the loop rate
     ros::spinOnce();   //Check for new messages
   }
+  g_newOdom = false;
+  g_lastOdom(0) = g_odom_x;
+  g_lastOdom(1) = g_odom_y;
+  g_lastOdom(2) = g_odom_yaw;
   dynamic_reconfigure::Server<turtlebot_example::lab2Config> srv;
   dynamic_reconfigure::Server<turtlebot_example::lab2Config>::CallbackType f;
   f = boost::bind(&reconfigureCallback, _1, _2);
@@ -336,10 +365,10 @@ int main(int argc, char **argv)
   	// vel.linear.x = 0.1; // set linear speed
   	// vel.angular.z = 0.3; // set angular speed
 
-    vel.linear.x = 0.1;
-    vel.angular.z = 0.3;
-    g_Umat(0) = 0.1;
-    g_Umat(2) = 0.3;
+    // vel.linear.x = 0.1;
+    // vel.angular.z = 0.3;
+    // g_Umat(0) = 0.1;
+    // g_Umat(2) = 0.3;
 
   	// velocity_publisher.publish(vel); // Publish the command velocity
 
@@ -349,6 +378,7 @@ int main(int argc, char **argv)
     //std::cout << "vec:\n" <<first_vec  << std::endl;
 
     viz.visualize_particle(g_particles.colwise()+first_vec.cast<double>()); //vel
+    // viz.visualize_particle(first_vec.cast<double>()); //vel
   }
 
   return 0;
