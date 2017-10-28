@@ -63,7 +63,7 @@ Eigen::MatrixXd g_Rmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1e-
 //
 // Measurement.
 Eigen::MatrixXd g_Cmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
-Eigen::MatrixXd g_Qmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1e-2;
+Eigen::MatrixXd g_Qmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1e-4;
 Eigen::MatrixXd g_Umat = Eigen::MatrixXd::Zero(NUM_STATES, 1); //properly size this.
 Eigen::MatrixXd g_Meas = Eigen::MatrixXd::Zero(NUM_STATES, 1);
 Eigen::MatrixXd g_lastOdom = Eigen::MatrixXd::Zero(NUM_STATES, 1);
@@ -111,9 +111,11 @@ void pose_callback(const gazebo_msgs::ModelStates& msg)
       init_pose_set = true;
       sampled = true;
     }
-    g_ips_x = msg.pose[i].position.x - first_vec(0);
-    g_ips_y = msg.pose[i].position.y - first_vec(1);
-    g_ips_yaw = tf::getYaw(msg.pose[i].orientation)- first_vec(2);
+    Eigen::MatrixXd e = g_Rmat.array().sqrt();
+    e *= g_normMatGen.samples(1);
+    g_ips_x = msg.pose[i].position.x - first_vec(0) + e(0);
+    g_ips_y = msg.pose[i].position.y - first_vec(1) + e(1);
+    g_ips_yaw = tf::getYaw(msg.pose[i].orientation)- first_vec(2) + e(2);
     g_ips_yaw = floatMod(g_ips_yaw + M_PI, 2 * M_PI) - M_PI;
     g_newIPS = true;
 }
@@ -214,22 +216,15 @@ void bresenham(int x0, int y0, int x1, int y1, std::vector<int>& x, std::vector<
 // Implements measurement updates.
 void measUpdate(MeasType type, Eigen::MatrixXd lastMean)
 {
-
-  // for1 each of meas types.
-  // if meas recived
-  // get Cmat
-  // for2
   Eigen::MatrixXd qMeas;
   Eigen::MatrixXd meas;
   qMeas.resizeLike(g_Qmat);
   meas.resizeLike(g_Meas);
   switch (type) {
     case MEAS_IPS:
-      // unkown cov.
       meas(0) = g_ips_x;
       meas(1) = g_ips_y;
       meas(2) = g_ips_yaw;
-      // std::cout << "Meas:\n" << meas << std::endl;
       qMeas = g_Qmat;
     break;
     case MEAS_ODOM:
@@ -237,14 +232,12 @@ void measUpdate(MeasType type, Eigen::MatrixXd lastMean)
       meas(1) = g_odom_y;
       meas(2) = g_odom_yaw;
       auto diff = meas - g_lastOdom;
-      // std::cout << "diff " << diff << std::endl;
       g_lastOdom = meas;
       meas = lastMean + diff;
       meas(2) = floatMod(meas(2) + M_PI, 2 * M_PI) - M_PI;
       qMeas = g_odom_cov;
     break;
   }
-  // std::cout << "Meas:\n" << meas << std::endl;
   //
   // Update the weights.
   for (uint32_t part = 0; part < g_particles.cols(); ++part) {
@@ -267,24 +260,18 @@ void measUpdate(MeasType type, Eigen::MatrixXd lastMean)
     }
     g_particles.col(part) = g_particlesPred.col(firstLarger);
   }
-  //std::cout << "meas: \n" << meas << std::endl;
 }
 
 //
 // implements particle filtering.
 void particleFilter()
 {
-  std::cout << "-----------------\n";
   std::lock_guard<std::mutex> lock(g_mutex);
   //
   // Motion model.
   for (uint32_t part = 0; part < g_particles.cols(); ++part) {
     Eigen::MatrixXd e = g_Rmat.array().sqrt();
     e *= g_normMatGen.samples(1);
-    //
-    // Ensure that all angles are -pi to pi.
-    // g_particlesPred.col(part) = g_Amat * g_particles.col(part) + g_Bmat * g_Umat + e;
-
     auto partCol = g_particles.col(part);
     auto partPredCol = g_particlesPred.col(part);
     partPredCol(0) = partCol(0) + g_Umat(0) * std::cos(partCol(2)) * PERIOD;
@@ -309,8 +296,6 @@ void particleFilter()
   }
   Eigen::MatrixXd centered = g_particles.rowwise() - g_particles.colwise().mean();
   Eigen::MatrixXd cov = (centered.adjoint() * centered) / double(g_particles.rows() - 1);
-  std::cout << "Mean X:\n" << g_particles.rowwise().mean() << std::endl;
-  // std::cout << "Var X:\n" << cov << std::endl;
 }
 
 int main(int argc, char **argv)
@@ -321,7 +306,6 @@ int main(int argc, char **argv)
   //
   //Instanciate Vis
   Visualizer viz(n);
-
   //
   //Subscribe to the desired topics and assign callbacks
   ros::Subscriber pose_sub = n.subscribe("/gazebo/model_states", 1, pose_callback);
