@@ -113,10 +113,12 @@ int8_t * g_mapData = NULL;
 uint32_t g_newScanCnt = 0;
 double g_emptyProb = 0.4;
 double g_notEmptyProb = 0.6;
+int32_t g_mapBeta = 5;
 
 double g_pose_scan_x = 0.;
 double g_pose_scan_y = 0.;
 double g_pose_scan_yaw = 0.;
+auto g_poseTime = ros::Time();
 ///////////////////////////////////////////////////////////////////////////////
 //                        End mapping.                                       //
 ///////////////////////////////////////////////////////////////////////////////
@@ -154,19 +156,21 @@ void reconfigureCallback(turtlebot_example::lab2Config &config, uint32_t level)
     delete[] g_mapData;
   }
   g_mapData = new int8_t[mapSize * mapSize];
-  g_mapMeta.origin.position.x -= g_mapMeta.width * g_gridResM / 2.0;
-  g_mapMeta.origin.position.y -= g_mapMeta.height * g_gridResM / 2.0;
+  g_mapMeta.origin.position.x = 0 - g_mapMeta.width * g_gridResM / 2.0;
+  g_mapMeta.origin.position.y = 0 - g_mapMeta.height * g_gridResM / 2.0;
   g_mapMeta.origin.orientation = tf::createQuaternionMsgFromRollPitchYaw(0,0,0);
   g_emptyProb = config.emptySpaceProbModifier;
   g_notEmptyProb = config.notEmptySpaceProbModifier;
   g_maxR = config.maxMeasRange;
   g_maxTheta = config.maxMeasTheta;
+  g_mapBeta = config.mapBeta;
 }
 
 //Callback function for the Position topic (SIMULATION)
 void pose_callback(const gazebo_msgs::ModelStates& msg)
 {
   std::lock_guard<std::mutex> lock(g_mutex);
+  g_poseTime = ros::Time::now();
   uint32_t i;
   for(i = 0; i < msg.name.size(); i++) if(msg.name[i] == "mobile_base") break;
 
@@ -181,9 +185,13 @@ void pose_callback(const gazebo_msgs::ModelStates& msg)
   Eigen::MatrixXd e = g_Rmat.array().sqrt();
   e *= g_normMatGen.samples(1);
   // no noise.
-  g_abs_x = msg.pose[i].position.x - first_vec(0);
-  g_abs_y = msg.pose[i].position.y - first_vec(1);
-  g_abs_yaw = tf::getYaw(msg.pose[i].orientation) - first_vec(2);
+  // g_abs_x = msg.pose[i].position.x - first_vec(0);
+  // g_abs_y = msg.pose[i].position.y - first_vec(1);
+  // g_abs_yaw = tf::getYaw(msg.pose[i].orientation) - first_vec(2);
+  g_abs_x = msg.pose[i].position.x;
+  g_abs_y = msg.pose[i].position.y;
+  g_abs_yaw = tf::getYaw(msg.pose[i].orientation);
+  //
   // noisy.
   g_ips_x = msg.pose[i].position.x - first_vec(0) + e(0);
   g_ips_y = msg.pose[i].position.y - first_vec(1) + e(1);
@@ -238,6 +246,11 @@ void cmd_callback(const geometry_msgs::Twist& msg)
 void scan_callback(const sensor_msgs::LaserScan& msg)
 {
   std::lock_guard<std::mutex> lock(g_mutex);
+  auto diff = msg.header.stamp - g_poseTime;
+  if (std::abs(diff.toSec() * 1e6) > 100000) {
+    std::cout << "Scan / pose info too old skipping. " << std::abs(diff.toSec() * 1e6) << "\n";
+    return;
+  }
   ++g_newScanCnt;
   g_laser = msg;
   g_pose_scan_x = g_abs_x;
@@ -259,40 +272,40 @@ void map_callback(const nav_msgs::OccupancyGrid& msg)
 // Usage: (x0, y0) is the first point and (x1, y1) is the second point. The calculated
 //        points (x, y) are stored in the x and y vector. x and y should be empty
 //	  vectors of integers and shold be defined where this function is called from.
-void bresenham(int x0, int y0, int x1, int y1, std::vector<int>& x, std::vector<int>& y) {
+void bresenham(int x0, int y0, int x1, int y1, std::vector<int>& x, std::vector<int>& y)
+{
+  int dx = abs(x1 - x0);
+  int dy = abs(y1 - y0);
+  int dx2 = x1 - x0;
+  int dy2 = y1 - y0;
 
-    int dx = abs(x1 - x0);
-    int dy = abs(y1 - y0);
-    int dx2 = x1 - x0;
-    int dy2 = y1 - y0;
+  const bool s = abs(dy) > abs(dx);
 
-    const bool s = abs(dy) > abs(dx);
+  if (s) {
+      int dx2 = dx;
+      dx = dy;
+      dy = dx2;
+  }
 
-    if (s) {
-        int dx2 = dx;
-        dx = dy;
-        dy = dx2;
-    }
+  int inc1 = 2 * dy;
+  int d = inc1 - dx;
+  int inc2 = d - dx;
 
-    int inc1 = 2 * dy;
-    int d = inc1 - dx;
-    int inc2 = d - dx;
+  x.push_back(x0);
+  y.push_back(y0);
 
-    x.push_back(x0);
-    y.push_back(y0);
+  while (x0 != x1 || y0 != y1) {
+      if (s) y0+=sgn(dy2); else x0+=sgn(dx2);
+      if (d < 0) d += inc1;
+      else {
+          d += inc2;
+          if (s) x0+=sgn(dx2); else y0+=sgn(dy2);
+      }
 
-    while (x0 != x1 || y0 != y1) {
-        if (s) y0+=sgn(dy2); else x0+=sgn(dx2);
-        if (d < 0) d += inc1;
-        else {
-            d += inc2;
-            if (s) x0+=sgn(dx2); else y0+=sgn(dy2);
-        }
-
-        //Add point to vector
-        x.push_back(x0);
-        y.push_back(y0);
-    }
+      //Add point to vector
+      x.push_back(x0);
+      y.push_back(y0);
+  }
 }
 
 //
@@ -408,6 +421,7 @@ inline double logit(double prob)
 // Implements mapping.
 void map()
 {
+  std::lock_guard<std::mutex> lock(g_mutex);
   //
   // wait until we get sufficiently new information.
   if (g_newScanCnt < 1) {
@@ -416,11 +430,13 @@ void map()
   g_newScanCnt = 0;
   //
   // current position.
-  double y_map = g_abs_x - g_mapMeta.origin.position.x;
-  double x_map = g_abs_y - g_mapMeta.origin.position.y;
+  double y_map = g_pose_scan_x - g_mapMeta.origin.position.x;
+  double x_map = g_pose_scan_y - g_mapMeta.origin.position.y;
   uint32_t x_map_idx = x_map / g_gridResM;
   uint32_t y_map_idx = y_map / g_gridResM;
-  double yaw_map = g_abs_yaw - tf::getYaw(g_mapMeta.origin.orientation);
+  std::cout << "pose yaw: " << g_pose_scan_yaw << " orientation yaw " << tf::getYaw(g_mapMeta.origin.orientation) << std::endl;
+  double yaw_map = g_pose_scan_yaw - tf::getYaw(g_mapMeta.origin.orientation);
+  std::cout << "yaw_map: " << yaw_map << std::endl;
   yaw_map = floatMod(yaw_map + M_PI, 2 * M_PI) - M_PI;
   double x_rel = 0;
   double y_rel = 0;
@@ -441,22 +457,21 @@ void map()
     // if (std::isnan(range) || range < g_laser.range_min || range > g_laser.range_max) { // may want to make it that these cases count as max dist to update.
     //   continue;
     // }
-    if (std::isnan(range) || range > g_laser.range_max || range > g_maxR) {
-      range = g_maxR;
-    }
     //
     // Invalid measurement.
-    if (range < g_laser.range_min) { // may want to make it that these cases count as max dist to update.
+    if (std::isnan(range) || range < g_laser.range_min) { // may want to make it that these cases count as max dist to update.
       continue;
     }
-
+    if (range > g_laser.range_max || range > g_maxR) {
+      range = g_maxR;
+    }
     std::vector<int> y_coords;
     std::vector<int> x_coords;
     angle = g_laser.angle_min + idx * g_laser.angle_increment;
     //
     // Polar coordinate to (x,y).
-    x_rel = g_laser.ranges[idx] * std::sin(angle);
-    y_rel = g_laser.ranges[idx] * std::cos(angle);
+    x_rel = range * std::sin(angle);
+    y_rel = range * std::cos(angle);
     //
     // Relative coordinates in the map frame.
     x_map_rel = x_rel * std::cos(-yaw_map) - y_rel * std::sin(-yaw_map);
@@ -473,17 +488,21 @@ void map()
     //
     // Iterate through ray traced map.
     // Do we ever update the same thing twice??
-    for (uint32_t rayIdx = 0; rayIdx < x_coords.size() - 1; ++rayIdx) {
+    for (uint32_t rayIdx = 0; rayIdx < x_coords.size() - g_mapBeta; ++rayIdx) {
       g_L(x_coords[rayIdx], y_coords[rayIdx]) = g_L(x_coords[rayIdx], y_coords[rayIdx]) - g_L0(x_coords[rayIdx], y_coords[rayIdx]) + logit(g_emptyProb);
     }
     //
-    // Last index is either empty or not empty.
-    uint32_t rayIdx = x_coords.size() - 1;
-    if (abs(range - g_maxR) > 1e-3) {
-      g_L(x_coords[rayIdx], y_coords[rayIdx]) = g_L(x_coords[rayIdx], y_coords[rayIdx]) - g_L0(x_coords[rayIdx], y_coords[rayIdx]) + logit(g_notEmptyProb);
+    // Iterate through the last beta indicies and fill them.
+    uint32_t rayIdx = x_coords.size() - g_mapBeta;
+    if (abs(range - g_maxR) > 1e-3) { // did not read the max range.
+      for (; rayIdx < x_coords.size(); ++rayIdx) {
+        g_L(x_coords[rayIdx], y_coords[rayIdx]) = g_L(x_coords[rayIdx], y_coords[rayIdx]) - g_L0(x_coords[rayIdx], y_coords[rayIdx]) + logit(g_notEmptyProb);
+      }
     }
     else {
-      g_L(x_coords[rayIdx], y_coords[rayIdx]) = g_L(x_coords[rayIdx], y_coords[rayIdx]) - g_L0(x_coords[rayIdx], y_coords[rayIdx]) + logit(g_emptyProb);
+      for (; rayIdx < x_coords.size(); ++rayIdx) {
+        g_L(x_coords[rayIdx], y_coords[rayIdx]) = g_L(x_coords[rayIdx], y_coords[rayIdx]) - g_L0(x_coords[rayIdx], y_coords[rayIdx]) + logit(g_emptyProb);
+      }
     }
   }
   // loop over all messages.
@@ -537,7 +556,6 @@ int main(int argc, char **argv)
   //
   //Velocity control variable
   geometry_msgs::Twist vel;
-
   //
   // ROS loop.
   while (ros::ok()) {
@@ -545,9 +563,10 @@ int main(int argc, char **argv)
     // Looper.
   	loop_rate.sleep(); //Maintain the loop rate
   	ros::spinOnce();   //Check for new messages
-    // particleFilter();
+    particleFilter();
+    ros::spinOnce();
     map();
-    // viz.visualize_particle(g_particles.colwise()+first_vec.cast<double>()); //vel
+    viz.visualize_particle(g_particles.colwise()+first_vec.cast<double>()); //vel
     visOcc();
   }
 
