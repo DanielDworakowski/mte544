@@ -13,6 +13,8 @@
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Twist.h>
+#include <sensor_msgs/LaserScan.h>
+#include <nav_msgs/OccupancyGrid.h>
 #include <tf/transform_datatypes.h>
 #include <gazebo_msgs/ModelStates.h>
 #include <visualization_msgs/Marker.h>
@@ -27,7 +29,8 @@
 #include "cpp/turtlebot_example/lab2Config.h"
 #include "Visualizer.hpp"
 
-ros::Publisher pose_publisher;
+ros::Publisher pose_pub;
+ros::Publisher map_pub;
 ros::Publisher marker_pub;
 
 double g_ips_x;
@@ -36,6 +39,11 @@ double g_ips_yaw;
 double g_odom_x;
 double g_odom_y;
 double g_odom_yaw;
+//
+// Absolute location.
+double g_abs_x;
+double g_abs_y;
+double g_abs_yaw;
 //
 // Matricies.
 #define NUM_STATES 3
@@ -47,6 +55,9 @@ enum MeasType {
   MEAS_IPS
 };
 
+///////////////////////////////////////////////////////////////////////////////
+//                       Particle filter.                                    //
+///////////////////////////////////////////////////////////////////////////////
 Eigen::VectorXf first_vec(3);
 bool init_pose_set = false;
 bool sampled = false;
@@ -81,43 +92,105 @@ std::mutex g_mutex;
 // Indicate if there was a new measurement.
 bool g_newOdom = false;
 bool g_newIPS = false;
+///////////////////////////////////////////////////////////////////////////////
+//                       End particle filter.                                //
+///////////////////////////////////////////////////////////////////////////////
 
+///////////////////////////////////////////////////////////////////////////////
+//                          Mapping.                                         //
+///////////////////////////////////////////////////////////////////////////////
+
+double g_maxR = 10.;
+double g_maxTheta = 1.;
+double g_gridResM = 0.01; // Length / width of a grid in (m).
+double g_mapSizeM = 10;
+Eigen::MatrixXd g_M = Eigen::MatrixXd::Ones(g_mapSizeM / g_gridResM, g_mapSizeM / g_gridResM); //Map of probabilities.
+Eigen::MatrixXd g_L = Eigen::MatrixXd::Ones(g_mapSizeM / g_gridResM, g_mapSizeM / g_gridResM); //Map of logits.
+Eigen::MatrixXd g_L0 = Eigen::MatrixXd::Ones(g_mapSizeM / g_gridResM, g_mapSizeM / g_gridResM); //Map of logits.
+nav_msgs::MapMetaData g_mapMeta;
+sensor_msgs::LaserScan g_laser;
+int8_t * g_mapData = NULL;
+uint32_t g_newScanCnt = 0;
+double g_emptyProb = 0.4;
+double g_notEmptyProb = 0.6;
+
+double g_pose_scan_x = 0.;
+double g_pose_scan_y = 0.;
+double g_pose_scan_yaw = 0.;
+///////////////////////////////////////////////////////////////////////////////
+//                        End mapping.                                       //
+///////////////////////////////////////////////////////////////////////////////
 short sgn(int x) { return x >= 0 ? 1 : -1; }
 
 void reconfigureCallback(turtlebot_example::lab2Config &config, uint32_t level)
 {
   (void) level;
-  config.nParticles = 100;
-  config.thetaPriorRange = 1;
+  //
+  // Particle filter.
   std::lock_guard<std::mutex> lock(g_mutex);
-  g_particles = Eigen::MatrixXd::Random(NUM_STATES, config.nParticles); //.colwise()+first_vec.cast<double>();
+  g_particles = Eigen::MatrixXd::Random(NUM_STATES, config.nParticles);
   g_particles.topRows(2) *= config.posPriorRange;
   g_particles.row(2) *= config.thetaPriorRange;
   g_particlesPred = Eigen::MatrixXd::Zero(NUM_STATES, config.nParticles);
   g_w = Eigen::MatrixXd::Zero(1, config.nParticles);
+  //
+  // Mapping.
+  g_maxR = config.maxMeasRange;
+  g_maxTheta = config.maxMeasTheta;
+  g_gridResM = config.mapGridSize;
+  g_mapSizeM = config.mapSize;
+  uint32_t mapSize = g_mapSizeM / g_gridResM;
+  mapSize += !(mapSize % 2); //If the map is an even number add another gridblock.
+  g_M = Eigen::MatrixXd::Ones(mapSize, mapSize) * 0.5;
+  g_L.resizeLike(g_M);
+  g_L0.resizeLike(g_M);
+  g_L0 = log(g_M.array() / (1. - g_M.array()));
+  g_L = g_L0;
+  g_mapMeta.map_load_time = ros::Time::now();
+  g_mapMeta.resolution = g_gridResM;
+  g_mapMeta.width = mapSize;
+  g_mapMeta.height = mapSize;
+  if (g_mapData != NULL) {
+    delete[] g_mapData;
+  }
+  g_mapData = new int8_t[mapSize * mapSize];
+  g_mapMeta.origin.position.x -= g_mapMeta.width * g_gridResM / 2.0;
+  g_mapMeta.origin.position.y -= g_mapMeta.height * g_gridResM / 2.0;
+  g_mapMeta.origin.orientation = tf::createQuaternionMsgFromRollPitchYaw(0,0,0);
+  g_emptyProb = config.emptySpaceProbModifier;
+  g_notEmptyProb = config.notEmptySpaceProbModifier;
+  g_maxR = config.maxMeasRange;
+  g_maxTheta = config.maxMeasTheta;
 }
 
 //Callback function for the Position topic (SIMULATION)
 void pose_callback(const gazebo_msgs::ModelStates& msg)
 {
   std::lock_guard<std::mutex> lock(g_mutex);
-    uint32_t i;
-    for(i = 0; i < msg.name.size(); i++) if(msg.name[i] == "mobile_base") break;
+  uint32_t i;
+  for(i = 0; i < msg.name.size(); i++) if(msg.name[i] == "mobile_base") break;
 
-    if (!init_pose_set) {
-      first_vec(0) = msg.pose[i].position.x;
-      first_vec(1) = msg.pose[i].position.y;
-      first_vec(2) = tf::getYaw(msg.pose[i].orientation);
-      init_pose_set = true;
-      sampled = true;
-    }
-    Eigen::MatrixXd e = g_Rmat.array().sqrt();
-    e *= g_normMatGen.samples(1);
-    g_ips_x = msg.pose[i].position.x - first_vec(0) + e(0);
-    g_ips_y = msg.pose[i].position.y - first_vec(1) + e(1);
-    g_ips_yaw = tf::getYaw(msg.pose[i].orientation)- first_vec(2) + e(2);
-    g_ips_yaw = floatMod(g_ips_yaw + M_PI, 2 * M_PI) - M_PI;
-    g_newIPS = true;
+  if (!init_pose_set) {
+    g_mapMeta.origin = msg.pose[i];
+    first_vec(0) = msg.pose[i].position.x;
+    first_vec(1) = msg.pose[i].position.y;
+    first_vec(2) = tf::getYaw(msg.pose[i].orientation);
+    init_pose_set = true;
+    sampled = true;
+  }
+  Eigen::MatrixXd e = g_Rmat.array().sqrt();
+  e *= g_normMatGen.samples(1);
+  // no noise.
+  g_abs_x = msg.pose[i].position.x - first_vec(0);
+  g_abs_y = msg.pose[i].position.y - first_vec(1);
+  g_abs_yaw = tf::getYaw(msg.pose[i].orientation) - first_vec(2);
+  // noisy.
+  g_ips_x = msg.pose[i].position.x - first_vec(0) + e(0);
+  g_ips_y = msg.pose[i].position.y - first_vec(1) + e(1);
+  g_ips_yaw = tf::getYaw(msg.pose[i].orientation) - first_vec(2) + e(2);
+  g_ips_yaw = floatMod(g_ips_yaw + M_PI, 2 * M_PI) - M_PI;
+  g_abs_yaw = floatMod(g_abs_yaw + M_PI, 2 * M_PI) - M_PI;
+  g_newIPS = true;
 }
 
 //Callback function for the Position topic (LIVE)
@@ -125,10 +198,10 @@ void pose_callback(const gazebo_msgs::ModelStates& msg)
 void pose_callback(const geometry_msgs::PoseWithCovarianceStamped& msg)
 {
 
-	g_ips_x X = msg.pose.pose.position.x; // Robot X psotition
-	g_ips_y Y = msg.pose.pose.position.y; // Robot Y psotition
+	g_ips_x = msg.pose.pose.position.x; // Robot X psotition
+	g_ips_y = msg.pose.pose.position.y; // Robot Y psotition
 	g_ips_yaw = tf::getYaw(msg.pose.pose.orientation); // Robot Yaw
-	ROS_DEBUG("pose_callback X: %f Y: %f Yaw: %f", X, Y, Yaw);
+	// ROS_DEBUG("pose_callback X: %f Y: %f Yaw: %f", X, Y, Yaw);
 }*/
 
 /**
@@ -160,6 +233,16 @@ void cmd_callback(const geometry_msgs::Twist& msg)
   std::lock_guard<std::mutex> lock(g_mutex);
   g_Umat(0) = msg.linear.x;
   g_Umat(2) = msg.angular.z;
+}
+
+void scan_callback(const sensor_msgs::LaserScan& msg)
+{
+  std::lock_guard<std::mutex> lock(g_mutex);
+  ++g_newScanCnt;
+  g_laser = msg;
+  g_pose_scan_x = g_abs_x;
+  g_pose_scan_y = g_abs_y;
+  g_pose_scan_yaw = g_abs_yaw;
 }
 
 //
@@ -298,6 +381,121 @@ void particleFilter()
   Eigen::MatrixXd cov = (centered.adjoint() * centered) / double(g_particles.rows() - 1);
 }
 
+//
+// Implements OccupancyGrid visualization.
+void visOcc()
+{
+  typedef Eigen::Matrix<int8_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Matrix8u;
+  nav_msgs::OccupancyGrid grid;
+  grid.header.stamp = ros::Time::now();
+  grid.header.frame_id = "/odom";
+  grid.info = g_mapMeta;
+  g_M = g_L.array().exp() / (1 + g_L.array().exp());
+  auto prob = (g_M * 100.).cast<int8_t>();
+  Eigen::Map<Matrix8u>(g_mapData, prob.rows(), prob.cols() ) = prob;
+  grid.data.assign(g_mapData, g_mapData + prob.rows() * prob.cols());
+  map_pub.publish(grid);
+}
+
+//
+// The logit function.
+inline double logit(double prob)
+{
+  return std::log(prob / (1-prob));
+}
+
+//
+// Implements mapping.
+void map()
+{
+  //
+  // wait until we get sufficiently new information.
+  if (g_newScanCnt < 1) {
+    return;
+  }
+  g_newScanCnt = 0;
+  //
+  // current position.
+  double y_map = g_abs_x - g_mapMeta.origin.position.x;
+  double x_map = g_abs_y - g_mapMeta.origin.position.y;
+  uint32_t x_map_idx = x_map / g_gridResM;
+  uint32_t y_map_idx = y_map / g_gridResM;
+  double yaw_map = g_abs_yaw - tf::getYaw(g_mapMeta.origin.orientation);
+  yaw_map = floatMod(yaw_map + M_PI, 2 * M_PI) - M_PI;
+  double x_rel = 0;
+  double y_rel = 0;
+  double x_map_rel = 0;
+  double y_map_rel = 0;
+  double x_scan_map = 0;
+  double y_scan_map = 0;
+  uint32_t x_scan_idx = 0;
+  uint32_t y_scan_idx = 0;
+  double angle = 0;
+  double range = 0;
+
+  std::cout << "-------------------------- "  << std::endl;
+  for (uint32_t idx = 0; idx < g_laser.ranges.size(); ++idx) {
+    range = g_laser.ranges[idx];
+    //
+    // Check if measurement is invalid.
+    // if (std::isnan(range) || range < g_laser.range_min || range > g_laser.range_max) { // may want to make it that these cases count as max dist to update.
+    //   continue;
+    // }
+    if (std::isnan(range) || range > g_laser.range_max || range > g_maxR) {
+      range = g_maxR;
+    }
+    //
+    // Invalid measurement.
+    if (range < g_laser.range_min) { // may want to make it that these cases count as max dist to update.
+      continue;
+    }
+
+    std::vector<int> y_coords;
+    std::vector<int> x_coords;
+    angle = g_laser.angle_min + idx * g_laser.angle_increment;
+    //
+    // Polar coordinate to (x,y).
+    x_rel = g_laser.ranges[idx] * std::sin(angle);
+    y_rel = g_laser.ranges[idx] * std::cos(angle);
+    //
+    // Relative coordinates in the map frame.
+    x_map_rel = x_rel * std::cos(-yaw_map) - y_rel * std::sin(-yaw_map);
+    y_map_rel = x_rel * std::sin(-yaw_map) + y_rel * std::cos(-yaw_map);
+    //
+    // Map coordinates.
+    x_scan_map = x_map + x_map_rel;
+    y_scan_map = y_map + y_map_rel;
+    //
+    // Map index coordinates.
+    x_scan_idx = x_scan_map / g_gridResM;
+    y_scan_idx = y_scan_map / g_gridResM;
+    bresenham(x_map_idx, y_map_idx, x_scan_idx, y_scan_idx, x_coords, y_coords);
+    //
+    // Iterate through ray traced map.
+    // Do we ever update the same thing twice??
+    for (uint32_t rayIdx = 0; rayIdx < x_coords.size() - 1; ++rayIdx) {
+      g_L(x_coords[rayIdx], y_coords[rayIdx]) = g_L(x_coords[rayIdx], y_coords[rayIdx]) - g_L0(x_coords[rayIdx], y_coords[rayIdx]) + logit(g_emptyProb);
+    }
+    //
+    // Last index is either empty or not empty.
+    uint32_t rayIdx = x_coords.size() - 1;
+    if (abs(range - g_maxR) > 1e-3) {
+      g_L(x_coords[rayIdx], y_coords[rayIdx]) = g_L(x_coords[rayIdx], y_coords[rayIdx]) - g_L0(x_coords[rayIdx], y_coords[rayIdx]) + logit(g_notEmptyProb);
+    }
+    else {
+      g_L(x_coords[rayIdx], y_coords[rayIdx]) = g_L(x_coords[rayIdx], y_coords[rayIdx]) - g_L0(x_coords[rayIdx], y_coords[rayIdx]) + logit(g_emptyProb);
+    }
+  }
+  // loop over all messages.
+    // find angle of meas.
+    // find xy components of measurement
+    // add to the current location of the Robot
+    // convert into grid coordinates
+    // run the ray tracing algorithm
+    // perform update over each of the xy coordinates
+  // end for
+}
+
 int main(int argc, char **argv)
 {
 	//Initialize the ROS framework
@@ -310,11 +508,13 @@ int main(int argc, char **argv)
   //Subscribe to the desired topics and assign callbacks
   ros::Subscriber pose_sub = n.subscribe("/gazebo/model_states", 1, pose_callback);
   ros::Subscriber map_sub = n.subscribe("/map", 1, map_callback);
+  ros::Subscriber scan_sub = n.subscribe("/scan", 1, scan_callback);
   //
-  //Setup topics to Publish from this node
+  // Setup topics to Publish from this node
   // ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
-  pose_publisher = n.advertise<geometry_msgs::PoseStamped>("/pose", 1, true);
+  pose_pub = n.advertise<geometry_msgs::PoseStamped>("/pose", 1, true);
   marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 1, true);
+  map_pub = n.advertise<nav_msgs::OccupancyGrid>("OccupancyGrid", 1, true);
   ros::Subscriber odom_sub = n.subscribe("/odom", 1, odom_callback);
   ros::Subscriber cmd_sub = n.subscribe("/mobile_base/commands/velocity", 1, odom_callback);
   //
@@ -345,24 +545,10 @@ int main(int argc, char **argv)
     // Looper.
   	loop_rate.sleep(); //Maintain the loop rate
   	ros::spinOnce();   //Check for new messages
-  	//Main loop code goes here:
-  	// vel.linear.x = 0.1; // set linear speed
-  	// vel.angular.z = 0.3; // set angular speed
-
-    // vel.linear.x = 0.1;
-    // vel.angular.z = 0.3;
-    // g_Umat(0) = 0.1;
-    // g_Umat(2) = 0.3;
-
-  	// velocity_publisher.publish(vel); // Publish the command velocity
-
-    particleFilter();
-    //std::cout << "g bef:\n" << g_particles << std::endl;
-    //std::cout << "g aft:\n" <<g_particles.colwise()+first_vec.cast<double>()  << std::endl;
-    //std::cout << "vec:\n" <<first_vec  << std::endl;
-
-    viz.visualize_particle(g_particles.colwise()+first_vec.cast<double>()); //vel
-    // viz.visualize_particle(first_vec.cast<double>()); //vel
+    // particleFilter();
+    map();
+    // viz.visualize_particle(g_particles.colwise()+first_vec.cast<double>()); //vel
+    visOcc();
   }
 
   return 0;

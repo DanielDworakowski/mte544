@@ -2,7 +2,13 @@
 
 Reads and maintains the following parameters on the ROS server
 
-- \b "~nParticles" : \b [int] nParticles. min: 1, default: 4, max: 10000
+- \b "~nParticles" : \b [int] nParticles. min: 1, default: 100, max: 10000
 - \b "~posPriorRange" : \b [double] posPriorRange. min: 0.0, default: 1.0, max: 10.0
-- \b "~thetaPriorRange" : \b [double] thetaPriorRange. min: 0.0, default: 3.14159265359, max: 3.14159265359
+- \b "~thetaPriorRange" : \b [double] thetaPriorRange. min: 0.0, default: 1.0, max: 3.14159265359
+- \b "~maxMeasRange" : \b [double] Maximum range of measurement to accept for mapping. min: 0.0, default: 9.0, max: 50.0
+- \b "~maxMeasTheta" : \b [double] Maximum angle of measurement to accept for mapping. min: 0.0, default: 0.785398163397, max: 1.57079632679
+- \b "~mapGridSize" : \b [double] The size of a square of a map grid in meters. min: 1e-06, default: 0.01, max: 10.0
+- \b "~mapSize" : \b [double] The size of the map in meters. min: 1.0, default: 20.0, max: 50.0
+- \b "~emptySpaceProbModifier" : \b [double] The probability that a space is occupied given that there was no measured object there. min: 0.0, default: 0.4, max: 0.5
+- \b "~notEmptySpaceProbModifier" : \b [double] The probability that a space is occupied given that there was a measured object there. min: 0.5, default: 0.6, max: 1.0
 

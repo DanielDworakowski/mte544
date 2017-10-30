@@ -229,12 +229,24 @@ class DEFAULT
         if("nParticles"==(*_i)->name){nParticles = boost::any_cast<int>(val);}
         if("posPriorRange"==(*_i)->name){posPriorRange = boost::any_cast<double>(val);}
         if("thetaPriorRange"==(*_i)->name){thetaPriorRange = boost::any_cast<double>(val);}
+        if("maxMeasRange"==(*_i)->name){maxMeasRange = boost::any_cast<double>(val);}
+        if("maxMeasTheta"==(*_i)->name){maxMeasTheta = boost::any_cast<double>(val);}
+        if("mapGridSize"==(*_i)->name){mapGridSize = boost::any_cast<double>(val);}
+        if("mapSize"==(*_i)->name){mapSize = boost::any_cast<double>(val);}
+        if("emptySpaceProbModifier"==(*_i)->name){emptySpaceProbModifier = boost::any_cast<double>(val);}
+        if("notEmptySpaceProbModifier"==(*_i)->name){notEmptySpaceProbModifier = boost::any_cast<double>(val);}
       }
     }
 
     int nParticles;
 double posPriorRange;
 double thetaPriorRange;
+double maxMeasRange;
+double maxMeasTheta;
+double mapGridSize;
+double mapSize;
+double emptySpaceProbModifier;
+double notEmptySpaceProbModifier;
 
     bool state;
     std::string name;
@@ -250,6 +262,18 @@ double thetaPriorRange;
       double posPriorRange;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       double thetaPriorRange;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      double maxMeasRange;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      double maxMeasTheta;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      double mapGridSize;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      double mapSize;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      double emptySpaceProbModifier;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      double notEmptySpaceProbModifier;
 //#line 218 "/opt/ros/kinetic/share/dynamic_reconfigure/templates/ConfigType.h.template"
 
     bool __fromMessage__(dynamic_reconfigure::Config &msg)
@@ -393,7 +417,7 @@ lab2Config::GroupDescription<lab2Config::DEFAULT, lab2Config> Default("Default",
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       __max__.nParticles = 10000;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
-      __default__.nParticles = 4;
+      __default__.nParticles = 100;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       Default.abstract_parameters.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<int>("nParticles", "int", 0, "nParticles.", "", &lab2Config::nParticles)));
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
@@ -413,11 +437,71 @@ lab2Config::GroupDescription<lab2Config::DEFAULT, lab2Config> Default("Default",
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       __max__.thetaPriorRange = 3.14159265359;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
-      __default__.thetaPriorRange = 3.14159265359;
+      __default__.thetaPriorRange = 1.0;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       Default.abstract_parameters.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("thetaPriorRange", "double", 0, "thetaPriorRange.", "", &lab2Config::thetaPriorRange)));
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       __param_descriptions__.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("thetaPriorRange", "double", 0, "thetaPriorRange.", "", &lab2Config::thetaPriorRange)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __min__.maxMeasRange = 0.0;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __max__.maxMeasRange = 50.0;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __default__.maxMeasRange = 9.0;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("maxMeasRange", "double", 0, "Maximum range of measurement to accept for mapping.", "", &lab2Config::maxMeasRange)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("maxMeasRange", "double", 0, "Maximum range of measurement to accept for mapping.", "", &lab2Config::maxMeasRange)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __min__.maxMeasTheta = 0.0;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __max__.maxMeasTheta = 1.57079632679;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __default__.maxMeasTheta = 0.785398163397;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("maxMeasTheta", "double", 0, "Maximum angle of measurement to accept for mapping.", "", &lab2Config::maxMeasTheta)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("maxMeasTheta", "double", 0, "Maximum angle of measurement to accept for mapping.", "", &lab2Config::maxMeasTheta)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __min__.mapGridSize = 1e-06;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __max__.mapGridSize = 10.0;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __default__.mapGridSize = 0.01;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("mapGridSize", "double", 0, "The size of a square of a map grid in meters.", "", &lab2Config::mapGridSize)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("mapGridSize", "double", 0, "The size of a square of a map grid in meters.", "", &lab2Config::mapGridSize)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __min__.mapSize = 1.0;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __max__.mapSize = 50.0;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __default__.mapSize = 20.0;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("mapSize", "double", 0, "The size of the map in meters.", "", &lab2Config::mapSize)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("mapSize", "double", 0, "The size of the map in meters.", "", &lab2Config::mapSize)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __min__.emptySpaceProbModifier = 0.0;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __max__.emptySpaceProbModifier = 0.5;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __default__.emptySpaceProbModifier = 0.4;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("emptySpaceProbModifier", "double", 0, "The probability that a space is occupied given that there was no measured object there.", "", &lab2Config::emptySpaceProbModifier)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("emptySpaceProbModifier", "double", 0, "The probability that a space is occupied given that there was no measured object there.", "", &lab2Config::emptySpaceProbModifier)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __min__.notEmptySpaceProbModifier = 0.5;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __max__.notEmptySpaceProbModifier = 1.0;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __default__.notEmptySpaceProbModifier = 0.6;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("notEmptySpaceProbModifier", "double", 0, "The probability that a space is occupied given that there was a measured object there.", "", &lab2Config::notEmptySpaceProbModifier)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("notEmptySpaceProbModifier", "double", 0, "The probability that a space is occupied given that there was a measured object there.", "", &lab2Config::notEmptySpaceProbModifier)));
 //#line 245 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       Default.convertParams();
 //#line 245 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"

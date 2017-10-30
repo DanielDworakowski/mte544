@@ -1,9 +1,15 @@
 \subsubsection usage Usage
 \verbatim
 <node name="dynamic_reconfigure_node" pkg="turtlebot_example" type="dynamic_reconfigure_node">
-  <param name="nParticles" type="int" value="4" />
+  <param name="nParticles" type="int" value="100" />
   <param name="posPriorRange" type="double" value="1.0" />
-  <param name="thetaPriorRange" type="double" value="3.14159265359" />
+  <param name="thetaPriorRange" type="double" value="1.0" />
+  <param name="maxMeasRange" type="double" value="9.0" />
+  <param name="maxMeasTheta" type="double" value="0.785398163397" />
+  <param name="mapGridSize" type="double" value="0.01" />
+  <param name="mapSize" type="double" value="20.0" />
+  <param name="emptySpaceProbModifier" type="double" value="0.4" />
+  <param name="notEmptySpaceProbModifier" type="double" value="0.6" />
 </node>
 \endverbatim
 
