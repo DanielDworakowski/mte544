@@ -119,6 +119,7 @@ uint32_t g_newScanCnt = 0;
 double g_emptyProb = 0.4;
 double g_notEmptyProb = 0.6;
 int32_t g_mapBeta = 5;
+uint32_t g_scanSkipCnt = 1;
 
 double g_pose_scan_x = 0.;
 double g_pose_scan_y = 0.;
@@ -132,6 +133,8 @@ short sgn(int x) { return x >= 0 ? 1 : -1; }
 void reconfigureCallback(turtlebot_example::lab2Config &config, uint32_t level)
 {
   (void) level;
+  std_msgs::Empty empty_odom_reset_msg;
+  reset_odom_pub.publish(empty_odom_reset_msg);
   //
   // Particle filter.
   std::lock_guard<std::mutex> lock(g_mutex);
@@ -169,6 +172,7 @@ void reconfigureCallback(turtlebot_example::lab2Config &config, uint32_t level)
   g_maxR = config.maxMeasRange;
   g_maxTheta = config.maxMeasTheta;
   g_mapBeta = config.mapBeta;
+  g_scanSkipCnt = config.scanSkipCnt;
 }
 
 //Callback function for the Position topic (SIMULATION)
@@ -198,9 +202,16 @@ void pose_callback(const gazebo_msgs::ModelStates& msg)
   g_abs_yaw = tf::getYaw(msg.pose[i].orientation);
   //
   // noisy.
-  g_ips_x = msg.pose[i].position.x - first_vec(0) + e(0);
-  g_ips_y = msg.pose[i].position.y - first_vec(1) + e(1);
-  g_ips_yaw = tf::getYaw(msg.pose[i].orientation) - first_vec(2) + e(2);
+  // g_ips_x = msg.pose[i].position.x - first_vec(0) + e(0);
+  // g_ips_y = msg.pose[i].position.y - first_vec(1) + e(1);
+  // g_ips_yaw = tf::getYaw(msg.pose[i].orientation) - first_vec(2) + e(2);
+
+  double tmp_x = g_abs_x - first_vec(0);
+  double tmp_y = g_abs_y - first_vec(1);
+  g_ips_x = tmp_x*std::cos(-first_vec(2)) - tmp_y*std::sin(-first_vec(2)) + e(0);
+  g_ips_y = tmp_x*std::sin(-first_vec(2)) + tmp_y*std::cos(-first_vec(2)) + e(1);
+  g_ips_yaw = g_abs_yaw - first_vec(2) + e(2);
+
   g_ips_yaw = floatMod(g_ips_yaw + M_PI, 2 * M_PI) - M_PI;
   g_abs_yaw = floatMod(g_abs_yaw + M_PI, 2 * M_PI) - M_PI;
   g_newIPS = true;
@@ -211,8 +222,8 @@ void pose_callbackTbot(const geometry_msgs::PoseWithCovarianceStamped& msg)
 {
   std::lock_guard<std::mutex> lock(g_mutex);
   g_poseTime = ros::Time::now();
-	double ips_x = msg.pose.pose.position.x; // Robot X psotition
-	double ips_y = msg.pose.pose.position.y; // Robot Y psotition
+	double ips_x = msg.pose.pose.position.x; // Robot X positition
+	double ips_y = msg.pose.pose.position.y; // Robot Y positition
 	double ips_yaw = tf::getYaw(msg.pose.pose.orientation); // Robot Yaw
   if (!init_pose_set) {
     g_mapMeta.origin = msg.pose.pose;
@@ -233,10 +244,6 @@ void pose_callbackTbot(const geometry_msgs::PoseWithCovarianceStamped& msg)
   g_abs_yaw = ips_yaw;
   //
   // noisy.
-  std::cout << "b1 "<< g_abs_x << std::endl;
-  std::cout << "b2 "<< g_abs_y << std::endl;
-  std::cout << "b3 "<< g_abs_yaw << std::endl;
-
   double tmp_x = ips_x - first_vec(0);
   double tmp_y = ips_y - first_vec(1);
   g_ips_x = tmp_x*std::cos(-first_vec(2)) - tmp_y*std::sin(-first_vec(2)) + e(0);
@@ -246,9 +253,6 @@ void pose_callbackTbot(const geometry_msgs::PoseWithCovarianceStamped& msg)
   g_ips_yaw = floatMod(g_ips_yaw + M_PI, 2 * M_PI) - M_PI;
   g_abs_yaw = floatMod(g_abs_yaw + M_PI, 2 * M_PI) - M_PI;
   g_newIPS = true;
-  std::cout << "1 "<< g_ips_x << std::endl;
-  std::cout << "2 "<< g_ips_y << std::endl;
-  std::cout << "3 "<< g_ips_yaw << std::endl;
 }
 
 /**
@@ -287,10 +291,10 @@ void scan_callback(const sensor_msgs::LaserScan& msg)
   std::lock_guard<std::mutex> lock(g_mutex);
   auto diff = msg.header.stamp - g_poseTime;
   std::cout << "Tdiff " << diff.toSec() << std::endl;
-  // if (std::abs(diff.toSec() * 1e6) > 100000) {
-  //   std::cout << "Scan / pose info too old skipping. " << std::abs(diff.toSec() * 1e6) << "\n";
-  //   return;
-  // }
+  if (std::abs(diff.toSec() * 1e6) > 100000) {
+    std::cout << "Scan / pose info too old skipping. " << std::abs(diff.toSec() * 1e6) << "\n";
+    return;
+  }
   ++g_newScanCnt;
   g_laser = msg;
 
@@ -298,10 +302,6 @@ void scan_callback(const sensor_msgs::LaserScan& msg)
   g_pose_scan_y = g_odom_y;
   g_pose_scan_yaw = g_odom_yaw;
 
-
-  // g_pose_scan_x = g_abs_x;
-  // g_pose_scan_y = g_abs_y;
-  // g_pose_scan_yaw = g_abs_yaw;
 }
 
 //
@@ -470,7 +470,7 @@ void map()
   std::lock_guard<std::mutex> lock(g_mutex);
   //
   // wait until we get sufficiently new information.
-  if (g_newScanCnt < 1) {
+  if (g_newScanCnt < g_scanSkipCnt) {
     return;
   }
   g_newScanCnt = 0;
@@ -480,9 +480,7 @@ void map()
   double x_map = g_pose_scan_y - g_mapMeta.origin.position.y;
   uint32_t x_map_idx = x_map / g_gridResM;
   uint32_t y_map_idx = y_map / g_gridResM;
-  std::cout << "pose yaw: " << g_pose_scan_yaw << " orientation yaw " << tf::getYaw(g_mapMeta.origin.orientation) << std::endl;
   double yaw_map = g_pose_scan_yaw - tf::getYaw(g_mapMeta.origin.orientation);
-  std::cout << "yaw_map: " << yaw_map << std::endl;
   yaw_map = floatMod(yaw_map + M_PI, 2 * M_PI) - M_PI;
   double x_rel = 0;
   double y_rel = 0;
@@ -494,15 +492,10 @@ void map()
   uint32_t y_scan_idx = 0;
   double angle = 0;
   double range = 0;
-
-  std::cout << "-------------------------- "  << std::endl;
+  //
+  // Iterate through scans
   for (uint32_t idx = 0; idx < g_laser.ranges.size(); ++idx) {
     range = g_laser.ranges[idx];
-    //
-    // Check if measurement is invalid.
-    // if (std::isnan(range) || range < g_laser.range_min || range > g_laser.range_max) { // may want to make it that these cases count as max dist to update.
-    //   continue;
-    // }
     //
     // Invalid measurement.
     if (std::isnan(range) || range < g_laser.range_min) { // may want to make it that these cases count as max dist to update.
@@ -580,13 +573,14 @@ int main(int argc, char **argv)
   Visualizer viz(n);
   //
   //Subscribe to the desired topics and assign callbacks
-  // ros::Subscriber pose_sub = n.subscribe("/gazebo/model_states", 1, pose_callback); // Gazebo
-  ros::Subscriber pose_sub = n.subscribe("/indoor_pos", 1, pose_callbackTbot);
+  ros::Subscriber pose_sub_gaz = n.subscribe("/gazebo/model_states", 1, pose_callback); // Gazebo
+  ros::Subscriber pose_sub_tbot = n.subscribe("/indoor_pos", 1, pose_callbackTbot);
   ros::Subscriber map_sub = n.subscribe("/map", 1, map_callback);
   ros::Subscriber scan_sub = n.subscribe("/scan", 1, scan_callback);
   //
   // Setup topics to Publish from this node
   // ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
+  #pragma message("ensure these do not conflict")
   pose_pub = n.advertise<geometry_msgs::PoseStamped>("/pose", 1, true);
   marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 1, true);
   reset_odom_pub = n.advertise<std_msgs::Empty>("mobile_base/commands/reset_odometry", 1, true);

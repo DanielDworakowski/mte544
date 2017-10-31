@@ -10,6 +10,7 @@
   <param name="mapSize" type="double" value="20.0" />
   <param name="emptySpaceProbModifier" type="double" value="0.4" />
   <param name="notEmptySpaceProbModifier" type="double" value="0.6" />
+  <param name="scanSkipCnt" type="int" value="1" />
   <param name="mapBeta" type="int" value="5" />
 </node>
 \endverbatim

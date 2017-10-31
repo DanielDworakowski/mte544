@@ -235,6 +235,7 @@ class DEFAULT
         if("mapSize"==(*_i)->name){mapSize = boost::any_cast<double>(val);}
         if("emptySpaceProbModifier"==(*_i)->name){emptySpaceProbModifier = boost::any_cast<double>(val);}
         if("notEmptySpaceProbModifier"==(*_i)->name){notEmptySpaceProbModifier = boost::any_cast<double>(val);}
+        if("scanSkipCnt"==(*_i)->name){scanSkipCnt = boost::any_cast<int>(val);}
         if("mapBeta"==(*_i)->name){mapBeta = boost::any_cast<int>(val);}
       }
     }
@@ -248,6 +249,7 @@ double mapGridSize;
 double mapSize;
 double emptySpaceProbModifier;
 double notEmptySpaceProbModifier;
+int scanSkipCnt;
 int mapBeta;
 
     bool state;
@@ -276,6 +278,8 @@ int mapBeta;
       double emptySpaceProbModifier;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       double notEmptySpaceProbModifier;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      int scanSkipCnt;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       int mapBeta;
 //#line 218 "/opt/ros/kinetic/share/dynamic_reconfigure/templates/ConfigType.h.template"
@@ -506,6 +510,16 @@ lab2Config::GroupDescription<lab2Config::DEFAULT, lab2Config> Default("Default",
       Default.abstract_parameters.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("notEmptySpaceProbModifier", "double", 0, "The probability that a space is occupied given that there was a measured object there.", "", &lab2Config::notEmptySpaceProbModifier)));
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       __param_descriptions__.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<double>("notEmptySpaceProbModifier", "double", 0, "The probability that a space is occupied given that there was a measured object there.", "", &lab2Config::notEmptySpaceProbModifier)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __min__.scanSkipCnt = 1;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __max__.scanSkipCnt = 10;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __default__.scanSkipCnt = 1;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<int>("scanSkipCnt", "int", 0, "How many scans to skip for mapping.", "", &lab2Config::scanSkipCnt)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(lab2Config::AbstractParamDescriptionConstPtr(new lab2Config::ParamDescription<int>("scanSkipCnt", "int", 0, "How many scans to skip for mapping.", "", &lab2Config::scanSkipCnt)));
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       __min__.mapBeta = 1;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
