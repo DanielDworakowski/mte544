@@ -202,8 +202,7 @@ void pose_callback(const gazebo_msgs::ModelStates& msg)
 }
 
 //Callback function for the Position topic (LIVE)
-
-void pose_callback(const geometry_msgs::PoseWithCovarianceStamped& msg)
+void pose_callbackTbot(const geometry_msgs::PoseWithCovarianceStamped& msg)
 {
   std::lock_guard<std::mutex> lock(g_mutex);
   g_poseTime = ros::Time::now();
@@ -550,7 +549,8 @@ int main(int argc, char **argv)
   Visualizer viz(n);
   //
   //Subscribe to the desired topics and assign callbacks
-  ros::Subscriber pose_sub = n.subscribe("/gazebo/model_states", 1, pose_callback);
+  // ros::Subscriber pose_sub = n.subscribe("/gazebo/model_states", 1, pose_callback); // Gazebo
+  ros::Subscriber pose_sub = n.subscribe("/indoor_pos", 1, pose_callbackTbot);
   ros::Subscriber map_sub = n.subscribe("/map", 1, map_callback);
   ros::Subscriber scan_sub = n.subscribe("/scan", 1, scan_callback);
   //
