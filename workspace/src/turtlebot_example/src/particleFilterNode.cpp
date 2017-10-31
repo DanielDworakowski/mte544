@@ -61,7 +61,7 @@ enum MeasType {
 Eigen::VectorXf first_vec(3);
 bool init_pose_set = false;
 bool sampled = false;
-uint32_t g_nParticles = 4;
+uint32_t g_nParticles = 100;
 Eigen::MatrixXd g_particles(3, g_nParticles);
 Eigen::MatrixXd g_particlesPred(3, g_nParticles);
 Eigen::MatrixXd g_w(1, g_nParticles);
