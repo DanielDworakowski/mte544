@@ -202,15 +202,40 @@ void pose_callback(const gazebo_msgs::ModelStates& msg)
 }
 
 //Callback function for the Position topic (LIVE)
-/*
+
 void pose_callback(const geometry_msgs::PoseWithCovarianceStamped& msg)
 {
-
-	g_ips_x = msg.pose.pose.position.x; // Robot X psotition
-	g_ips_y = msg.pose.pose.position.y; // Robot Y psotition
-	g_ips_yaw = tf::getYaw(msg.pose.pose.orientation); // Robot Yaw
-	// ROS_DEBUG("pose_callback X: %f Y: %f Yaw: %f", X, Y, Yaw);
-}*/
+  std::lock_guard<std::mutex> lock(g_mutex);
+  g_poseTime = ros::Time::now();
+	double ips_x = msg.pose.pose.position.x; // Robot X psotition
+	double ips_y = msg.pose.pose.position.y; // Robot Y psotition
+	double ips_yaw = tf::getYaw(msg.pose.pose.orientation); // Robot Yaw
+  if (!init_pose_set) {
+    g_mapMeta.origin = msg.pose[i];
+    first_vec(0) = ips_x;
+    first_vec(1) = ips_y;
+    first_vec(2) = ips_yaw;
+    init_pose_set = true;
+    sampled = true;
+  }
+  Eigen::MatrixXd e = g_Rmat.array().sqrt();
+  e *= g_normMatGen.samples(1);
+  // no noise.
+  // g_abs_x = msg.pose[i].position.x - first_vec(0);
+  // g_abs_y = msg.pose[i].position.y - first_vec(1);
+  // g_abs_yaw = tf::getYaw(msg.pose[i].orientation) - first_vec(2);
+  g_abs_x = ips_x;
+  g_abs_y = ips_y;
+  g_abs_yaw = ips_yaw;
+  //
+  // noisy.
+  g_ips_x = ips_x - first_vec(0) + e(0);
+  g_ips_y = ips_y - first_vec(1) + e(1);
+  g_ips_yaw = ips_yaw - first_vec(2) + e(2);
+  g_ips_yaw = floatMod(g_ips_yaw + M_PI, 2 * M_PI) - M_PI;
+  g_abs_yaw = floatMod(g_abs_yaw + M_PI, 2 * M_PI) - M_PI;
+  g_newIPS = true;
+}
 
 /**
  * This tutorial demonstrates simple receipt of messages over the ROS system.
