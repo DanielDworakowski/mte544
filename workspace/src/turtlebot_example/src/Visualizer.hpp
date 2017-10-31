@@ -14,6 +14,7 @@
 #include <tf/transform_broadcaster.h>
 #include <geometry_msgs/PoseArray.h>
 #include "Eigen/Dense"
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 
 //
 // Control the square path.
@@ -27,6 +28,7 @@ class Visualizer {
     void visualize_path();
   private:
     void viz_pose_callback(const gazebo_msgs::ModelStates&);
+    void viz_pose_callbacktb(const geometry_msgs::PoseWithCovarianceStamped&);
     //
     // Node handle.
     ros::NodeHandle m_n;

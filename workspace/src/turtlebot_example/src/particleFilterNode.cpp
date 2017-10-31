@@ -11,6 +11,7 @@
 // //////////////////////////////////////////////////////////
 
 #include <ros/ros.h>
+#include <std_msgs/Empty.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Twist.h>
 #include <sensor_msgs/LaserScan.h>
@@ -33,6 +34,7 @@
 ros::Publisher pose_pub;
 ros::Publisher map_pub;
 ros::Publisher marker_pub;
+ros::Publisher reset_odom_pub;
 
 double g_ips_x;
 double g_ips_y;
@@ -40,6 +42,8 @@ double g_ips_yaw;
 double g_odom_x;
 double g_odom_y;
 double g_odom_yaw;
+
+#define DEBUG_LINE std::cout << __LINE__ << std::endl;
 //
 // Absolute location.
 double g_abs_x;
@@ -71,11 +75,11 @@ Eigen::MatrixXd g_odom_cov(3,3);
 // Motion.
 Eigen::MatrixXd g_Amat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
 Eigen::MatrixXd g_Bmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES); //properly size this.
-Eigen::MatrixXd g_Rmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1e-3;
+Eigen::MatrixXd g_Rmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1e-2;
 //
 // Measurement.
 Eigen::MatrixXd g_Cmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES);
-Eigen::MatrixXd g_Qmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1e-4;
+Eigen::MatrixXd g_Qmat = Eigen::MatrixXd::Identity(NUM_STATES, NUM_STATES) * 1e-2;
 Eigen::MatrixXd g_Umat = Eigen::MatrixXd::Zero(NUM_STATES, 1); //properly size this.
 Eigen::MatrixXd g_Meas = Eigen::MatrixXd::Zero(NUM_STATES, 1);
 Eigen::MatrixXd g_lastOdom = Eigen::MatrixXd::Zero(NUM_STATES, 1);
@@ -211,7 +215,7 @@ void pose_callbackTbot(const geometry_msgs::PoseWithCovarianceStamped& msg)
 	double ips_y = msg.pose.pose.position.y; // Robot Y psotition
 	double ips_yaw = tf::getYaw(msg.pose.pose.orientation); // Robot Yaw
   if (!init_pose_set) {
-    g_mapMeta.origin = msg.pose[i];
+    g_mapMeta.origin = msg.pose.pose;
     first_vec(0) = ips_x;
     first_vec(1) = ips_y;
     first_vec(2) = ips_yaw;
@@ -229,12 +233,22 @@ void pose_callbackTbot(const geometry_msgs::PoseWithCovarianceStamped& msg)
   g_abs_yaw = ips_yaw;
   //
   // noisy.
-  g_ips_x = ips_x - first_vec(0) + e(0);
-  g_ips_y = ips_y - first_vec(1) + e(1);
+  std::cout << "b1 "<< g_abs_x << std::endl;
+  std::cout << "b2 "<< g_abs_y << std::endl;
+  std::cout << "b3 "<< g_abs_yaw << std::endl;
+
+  double tmp_x = ips_x - first_vec(0);
+  double tmp_y = ips_y - first_vec(1);
+  g_ips_x = tmp_x*std::cos(-first_vec(2)) - tmp_y*std::sin(-first_vec(2)) + e(0);
+  g_ips_y = tmp_x*std::sin(-first_vec(2)) + tmp_y*std::cos(-first_vec(2)) + e(1);
   g_ips_yaw = ips_yaw - first_vec(2) + e(2);
+
   g_ips_yaw = floatMod(g_ips_yaw + M_PI, 2 * M_PI) - M_PI;
   g_abs_yaw = floatMod(g_abs_yaw + M_PI, 2 * M_PI) - M_PI;
   g_newIPS = true;
+  std::cout << "1 "<< g_ips_x << std::endl;
+  std::cout << "2 "<< g_ips_y << std::endl;
+  std::cout << "3 "<< g_ips_yaw << std::endl;
 }
 
 /**
@@ -272,15 +286,22 @@ void scan_callback(const sensor_msgs::LaserScan& msg)
 {
   std::lock_guard<std::mutex> lock(g_mutex);
   auto diff = msg.header.stamp - g_poseTime;
-  if (std::abs(diff.toSec() * 1e6) > 100000) {
-    std::cout << "Scan / pose info too old skipping. " << std::abs(diff.toSec() * 1e6) << "\n";
-    return;
-  }
+  std::cout << "Tdiff " << diff.toSec() << std::endl;
+  // if (std::abs(diff.toSec() * 1e6) > 100000) {
+  //   std::cout << "Scan / pose info too old skipping. " << std::abs(diff.toSec() * 1e6) << "\n";
+  //   return;
+  // }
   ++g_newScanCnt;
   g_laser = msg;
-  g_pose_scan_x = g_abs_x;
-  g_pose_scan_y = g_abs_y;
-  g_pose_scan_yaw = g_abs_yaw;
+
+  g_pose_scan_x = g_odom_x;
+  g_pose_scan_y = g_odom_y;
+  g_pose_scan_yaw = g_odom_yaw;
+
+
+  // g_pose_scan_x = g_abs_x;
+  // g_pose_scan_y = g_abs_y;
+  // g_pose_scan_yaw = g_abs_yaw;
 }
 
 //
@@ -514,6 +535,9 @@ void map()
     // Iterate through ray traced map.
     // Do we ever update the same thing twice??
     for (uint32_t rayIdx = 0; rayIdx < x_coords.size() - g_mapBeta; ++rayIdx) {
+      if (x_coords[rayIdx] > g_L.rows() || y_coords[rayIdx] > g_L.cols() || x_coords[rayIdx] < 0 || y_coords[rayIdx] < 0) {
+        break;
+      }
       g_L(x_coords[rayIdx], y_coords[rayIdx]) = g_L(x_coords[rayIdx], y_coords[rayIdx]) - g_L0(x_coords[rayIdx], y_coords[rayIdx]) + logit(g_emptyProb);
     }
     //
@@ -521,11 +545,17 @@ void map()
     uint32_t rayIdx = x_coords.size() - g_mapBeta;
     if (abs(range - g_maxR) > 1e-3) { // did not read the max range.
       for (; rayIdx < x_coords.size(); ++rayIdx) {
+        if (x_coords[rayIdx] > g_L.rows() || y_coords[rayIdx] > g_L.cols() || x_coords[rayIdx] < 0 || y_coords[rayIdx] < 0) {
+          break;
+        }
         g_L(x_coords[rayIdx], y_coords[rayIdx]) = g_L(x_coords[rayIdx], y_coords[rayIdx]) - g_L0(x_coords[rayIdx], y_coords[rayIdx]) + logit(g_notEmptyProb);
       }
     }
     else {
       for (; rayIdx < x_coords.size(); ++rayIdx) {
+        if (x_coords[rayIdx] > g_L.rows() || y_coords[rayIdx] > g_L.cols() || x_coords[rayIdx] < 0 || y_coords[rayIdx] < 0) {
+          break;
+        }
         g_L(x_coords[rayIdx], y_coords[rayIdx]) = g_L(x_coords[rayIdx], y_coords[rayIdx]) - g_L0(x_coords[rayIdx], y_coords[rayIdx]) + logit(g_emptyProb);
       }
     }
@@ -559,9 +589,13 @@ int main(int argc, char **argv)
   // ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
   pose_pub = n.advertise<geometry_msgs::PoseStamped>("/pose", 1, true);
   marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 1, true);
+  reset_odom_pub = n.advertise<std_msgs::Empty>("mobile_base/commands/reset_odometry", 1, true);
   map_pub = n.advertise<nav_msgs::OccupancyGrid>("OccupancyGrid", 1, true);
   ros::Subscriber odom_sub = n.subscribe("/odom", 1, odom_callback);
   ros::Subscriber cmd_sub = n.subscribe("/mobile_base/commands/velocity", 1, odom_callback);
+  std_msgs::Empty empty_odom_reset_msg;
+  reset_odom_pub.publish(empty_odom_reset_msg);
+  usleep(333323);
   //
   //Set the loop rate
   ros::Rate loop_rate(F);    //20Hz update rate
@@ -592,7 +626,8 @@ int main(int argc, char **argv)
     particleFilter();
     ros::spinOnce();
     map();
-    viz.visualize_particle(g_particles.colwise()+first_vec.cast<double>()); //vel
+    viz.visualize_particle(g_particles); //ve
+    // viz.visualize_particle(g_particles.colwise()+first_vec.cast<double>(); //vel
     visOcc();
   }
 

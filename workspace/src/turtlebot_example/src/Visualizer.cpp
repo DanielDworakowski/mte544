@@ -5,6 +5,7 @@ Visualizer::Visualizer(
   ros::NodeHandle n
 )
 	: m_n(n)
+  // , pose_sub(n.subscribe("/gazebo/model_states", 1, &Visualizer::viz_pose_callback,this))
   , pose_sub(n.subscribe("/gazebo/model_states", 1, &Visualizer::viz_pose_callback,this))
 	, particle_pub(n.advertise<geometry_msgs::PoseArray>("particle_pose_array", 10))
 	, path_pub(n.advertise<geometry_msgs::PoseArray>("path_pose_array", 10))
@@ -25,8 +26,7 @@ void Visualizer::visualize_particle(Eigen::MatrixXd particle_matrix)
 	particles.header.stamp = ros::Time::now();
     particles.header.frame_id = "/odom";
     int num_particles = particle_matrix.cols();
-    for (int i = 0; i < num_particles; ++i)
-    {
+    for (int i = 0; i < num_particles; ++i) {
     	double x = particle_matrix(0,i);
     	double y = particle_matrix(1,i);
     	double theta = particle_matrix(2,i);
@@ -47,6 +47,17 @@ void Visualizer::viz_pose_callback(const gazebo_msgs::ModelStates& msg)
     path.header.frame_id = "/odom";
 	path.poses.push_back(msg.pose[i]);
     path_pub.publish(path);
+}
+
+void Visualizer::viz_pose_callbacktb(const geometry_msgs::PoseWithCovarianceStamped& msg)
+{
+  #pragma message("fix me")
+	// uint32_t i;
+  //   for(i = 0; i < msg.name.size(); i++) if(msg.name[i] == "mobile_base") break;
+	// path.header.stamp = ros::Time::now();
+  //   path.header.frame_id = "/odom";
+	// path.poses.push_back(msg.pose[i]);
+  //   path_pub.publish(path);
 }
 
 // int main(int argc, char **argv)
