@@ -52,6 +52,11 @@ void Visualizer::viz_pose_callback(const gazebo_msgs::ModelStates& msg)
 void Visualizer::viz_pose_callbacktb(const geometry_msgs::PoseWithCovarianceStamped& msg)
 {
   #pragma message("fix me")
+  path.header.stamp = ros::Time::now();
+  path.header.frame_id = "/odom";
+  path.poses.push_back(msg.pose.pose);
+  path_pub.publish(path);
+
 	// uint32_t i;
   //   for(i = 0; i < msg.name.size(); i++) if(msg.name[i] == "mobile_base") break;
 	// path.header.stamp = ros::Time::now();

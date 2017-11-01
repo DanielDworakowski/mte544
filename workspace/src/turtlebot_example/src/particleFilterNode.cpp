@@ -289,12 +289,13 @@ void cmd_callback(const geometry_msgs::Twist& msg)
 void scan_callback(const sensor_msgs::LaserScan& msg)
 {
   std::lock_guard<std::mutex> lock(g_mutex);
-  auto diff = msg.header.stamp - g_poseTime;
-  std::cout << "Tdiff " << diff.toSec() << std::endl;
-  if (std::abs(diff.toSec() * 1e6) > 100000) {
-    std::cout << "Scan / pose info too old skipping. " << std::abs(diff.toSec() * 1e6) << "\n";
-    return;
-  }
+  // auto diff = msg.header.stamp - g_poseTime;
+  auto diff = ros::Time::now() - g_poseTime;
+  // std::cout << "Tdiff " << diff.toSec() << std::endl;
+  // if (std::abs(diff.toSec() * 1e6) > 100000) {
+  //   std::cout << "Scan / pose info too old skipping. " << std::abs(diff.toSec() * 1e6) << "\n";
+  //   return;
+  // }
   ++g_newScanCnt;
   g_laser = msg;
 
@@ -573,7 +574,7 @@ int main(int argc, char **argv)
   Visualizer viz(n);
   //
   //Subscribe to the desired topics and assign callbacks
-  ros::Subscriber pose_sub_gaz = n.subscribe("/gazebo/model_states", 1, pose_callback); // Gazebo
+  // ros::Subscriber pose_sub_gaz = n.subscribe("/gazebo/model_states", 1, pose_callback); // Gazebo
   ros::Subscriber pose_sub_tbot = n.subscribe("/indoor_pos", 1, pose_callbackTbot);
   ros::Subscriber map_sub = n.subscribe("/map", 1, map_callback);
   ros::Subscriber scan_sub = n.subscribe("/scan", 1, scan_callback);
