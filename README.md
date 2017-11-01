@@ -16,7 +16,9 @@ Clone this repo
 
 ```sudo docker build . -t mte544 ```
 
-```sudo docker stop mte544_c; sudo docker rm mte544_c; sudo nvidia-docker run -it --env="DISPLAY" --env="QT_X11_NO_MITSHM=1" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" -v $(pwd)/workspace:/home/user/workspace --privileged --net=host --name mte544_c mte544```
+```sudo docker stop mte544_c; sudo docker rm mte544_c; sudo nvidia-docker run -it --ipc=host --env="DISPLAY" --env="QT_X11_NO_MITSHM=1" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" -v $(pwd)/workspace:/home/user/workspace --privileged --net=host --name mte544_c mte544
+
+```
 
 - to run additional terminal
 
