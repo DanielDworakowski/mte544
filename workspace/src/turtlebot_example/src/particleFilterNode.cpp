@@ -620,10 +620,20 @@ int main(int argc, char **argv)
   	ros::spinOnce();   //Check for new messages
     particleFilter();
     ros::spinOnce();
-    map();
+    // map();
     viz.visualize_particle(g_particles); //ve
+    auto mean_particle = g_particles.rowwise().mean();
+    geometry_msgs::Pose mean_pose;
+    double x = mean_particle(0,0);
+    double y = mean_particle(1,0);
+    double theta = mean_particle(2,0);
+    mean_pose.position.x = x;
+    mean_pose.position.y = y;
+    mean_pose.position.z = 0.0;
+    mean_pose.orientation = tf::createQuaternionMsgFromYaw(theta);
+    viz.visualize_path(mean_pose);
     // viz.visualize_particle(g_particles.colwise()+first_vec.cast<double>(); //vel
-    visOcc();
+    // visOcc();
   }
 
   return 0;

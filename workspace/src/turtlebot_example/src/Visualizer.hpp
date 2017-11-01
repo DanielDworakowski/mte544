@@ -15,6 +15,8 @@
 #include <geometry_msgs/PoseArray.h>
 #include "Eigen/Dense"
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include "nav_msgs/Odometry.h"
+
 
 //
 // Control the square path.
@@ -25,10 +27,10 @@ class Visualizer {
     //
     // Take a step at moving in a square.
     void visualize_particle(Eigen::MatrixXd);
-    void visualize_path();
+    void visualize_path(geometry_msgs::Pose);
   private:
     void viz_pose_callback(const gazebo_msgs::ModelStates&);
-    void viz_pose_callbacktb(const geometry_msgs::PoseWithCovarianceStamped&);
+    void viz_pose_callbacktb(const nav_msgs::Odometry&);
     //
     // Node handle.
     ros::NodeHandle m_n;
@@ -36,8 +38,10 @@ class Visualizer {
     // Publisher for pose goals.
     ros::Subscriber pose_sub;
     ros::Publisher particle_pub;
-    ros::Publisher path_pub;
+    ros::Publisher path_pub;    
+    ros::Publisher path_odom_pub;
     geometry_msgs::PoseArray path;
+    geometry_msgs::PoseArray path_odom;
 };
 
 // /move_base/result
