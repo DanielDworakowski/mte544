@@ -14,16 +14,16 @@ Clone this repo
 
 ```xhost +local:root ```
 
-```sudo docker build . -t mte544 ```
+```docker build . -t mte544 ```
 
-```sudo docker stop mte544_c; sudo docker rm mte544_c; sudo nvidia-docker run -it --ipc=host --env="DISPLAY" --env="QT_X11_NO_MITSHM=1" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" -v $(pwd)/workspace:/home/user/workspace --privileged --net=host --name mte544_c mte544
+```docker stop mte544_c; docker rm mte544_c; nvidia-docker run -it --ipc=host --env="DISPLAY" --env="QT_X11_NO_MITSHM=1" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" -v $(pwd)/workspace:/home/user/workspace --privileged --net=host --name mte544_c mte544
 
 ```
 
 - to run additional terminal
 
-```sudo docker exec -it mte544_c bash```
+```docker exec -it mte544_c bash```
 
 - for lazy, to kill all docker
 
-```sudo docker stop $(sudo docker ps -aq); sudo docker rm $(sudo docker ps -aq)```
+```docker stop $(docker ps -aq); docker rm $(docker ps -aq)```
