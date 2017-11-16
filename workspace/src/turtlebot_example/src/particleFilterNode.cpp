@@ -431,9 +431,9 @@ void particleFilter()
   if (g_newIPS) {
     measUpdate(MEAS_IPS, lastMean);
     g_newIPS = false;
+    g_particlesPred = g_particles;
   }
   if (g_newOdom) {
-    g_particlesPred = g_particles;
     measUpdate(MEAS_ODOM, lastMean);
     g_newOdom = false;
   }

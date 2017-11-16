@@ -48,7 +48,8 @@ RUN echo "deb-src http://us.archive.ubuntu.com/ubuntu/ xenial-updates main restr
 RUN echo "deb-src http://us.archive.ubuntu.com/ubuntu/ xenial-backports main restricted universe multiverse" | tee /etc/apt/sources.list.d/docker.list
 RUN echo "deb-src http://security.ubuntu.com/ubuntu xenial-security main restricted" | tee /etc/apt/sources.list.d/docker.list
 RUN apt-get -y install ros-kinetic-turtlebot-gazebo ros-kinetic-desktop-full ros-kinetic-turtlebot-rviz-launchers  ros-kinetic-warehouse-ros
-
+RUN apt-get update --fix-missing
+RUN apt-get -y install vim gedit net-tools
 # User
 RUN useradd -ms /bin/bash user
 RUN echo 'user:1234' | chpasswd
@@ -62,3 +63,4 @@ RUN chown -R user /home/user
 
 # Set up environment
 RUN echo "source /opt/ros/kinetic/setup.bash" >> ~/.bashrc
+RUN echo "source /home/user/workspace/devel/setup.bash" >> ~/.bashrc
