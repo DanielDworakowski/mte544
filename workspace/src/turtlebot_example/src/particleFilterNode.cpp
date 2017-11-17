@@ -68,6 +68,7 @@ bool init_pose_set = false;
 bool sampled = false;
 uint32_t g_nParticles = 100;
 Eigen::MatrixXd g_particles(3, g_nParticles);
+Eigen::MatrixXd g_dPart(3, g_nParticles);
 Eigen::MatrixXd g_particlesPred(3, g_nParticles);
 Eigen::MatrixXd g_w(1, g_nParticles);
 Eigen::MatrixXd g_odom_cov(3,3);
@@ -97,6 +98,7 @@ std::mutex g_mutex;
 // Indicate if there was a new measurement.
 bool g_newOdom = false;
 bool g_newIPS = false;
+bool g_newCmd = false;
 ///////////////////////////////////////////////////////////////////////////////
 //                       End particle filter.                                //
 ///////////////////////////////////////////////////////////////////////////////
@@ -138,10 +140,12 @@ void reconfigureCallback(turtlebot_example::lab2Config &config, uint32_t level)
   //
   // Particle filter.
   std::lock_guard<std::mutex> lock(g_mutex);
+  g_nParticles = config.nParticles;
   g_particles = Eigen::MatrixXd::Random(NUM_STATES, config.nParticles);
   g_particles.topRows(2) *= config.posPriorRange;
   g_particles.row(2) *= config.thetaPriorRange;
   g_particlesPred = Eigen::MatrixXd::Zero(NUM_STATES, config.nParticles);
+  g_dPart.resizeLike(g_particles);
   g_w = Eigen::MatrixXd::Zero(1, config.nParticles);
   //
   // Mapping.
@@ -283,7 +287,9 @@ void cmd_callback(const geometry_msgs::Twist& msg)
 {
   std::lock_guard<std::mutex> lock(g_mutex);
   g_Umat(0) = msg.linear.x;
+  g_Umat(1) = msg.linear.x;
   g_Umat(2) = msg.angular.z;
+  g_newCmd = true;
 }
 
 void scan_callback(const sensor_msgs::LaserScan& msg)
@@ -384,7 +390,11 @@ void measUpdate(MeasType type, Eigen::MatrixXd lastMean)
   //
   // Update the weights.
   for (uint32_t part = 0; part < g_particles.cols(); ++part) {
-    g_w.col(part) = normpdf<Eigen::MatrixXd::Scalar>(meas, g_Cmat * g_particlesPred.col(part), qMeas);
+    Eigen::MatrixXd pred = g_particlesPred.col(part);
+    meas(2) = floatMod(pred(2) - meas(2) + M_PI, 2 * M_PI) - M_PI;
+    pred(2) = 0;
+
+    g_w.col(part) = normpdf<Eigen::MatrixXd::Scalar>(meas, g_Cmat * pred, qMeas);
   }
   auto W_mat = cumsum1D(g_w);
   //
@@ -412,16 +422,20 @@ void particleFilter()
   std::lock_guard<std::mutex> lock(g_mutex);
   //
   // Motion model.
-  for (uint32_t part = 0; part < g_particles.cols(); ++part) {
-    Eigen::MatrixXd e = g_Rmat.array().sqrt();
-    e *= g_normMatGen.samples(1);
-    auto partCol = g_particles.col(part);
-    auto partPredCol = g_particlesPred.col(part);
-    partPredCol(0) = partCol(0) + g_Umat(0) * std::cos(partCol(2)) * PERIOD;
-    partPredCol(1) = partCol(1) + g_Umat(0) * std::sin(partCol(2)) * PERIOD;
-    partPredCol(2) = partCol(2) + g_Umat(2) * PERIOD;
-    partPredCol(2) = floatMod(partPredCol(2) + M_PI, 2 * M_PI) - M_PI;
-    g_particlesPred.col(part) = partPredCol + e;
+  if (g_newCmd) {
+    Eigen::MatrixXd e = g_normMatGen.samples(g_nParticles);
+    Eigen::MatrixXd sq = g_Rmat.array().sqrt();
+    auto noise = sq * e;
+    Eigen::MatrixXd thetas = g_particles.row(2);
+    g_dPart.row(0) = (g_Umat(0) * PERIOD) * thetas.array().cos();
+    g_dPart.row(1) = (g_Umat(1) * PERIOD) * thetas.array().sin();
+    g_dPart.row(2).setConstant(g_Umat(2) * PERIOD);
+    g_particlesPred += g_dPart + noise;
+    // g_particlesPred.row(2) = numext::fmod(g_particlesPred.row(2).array() + M_PI, 2 * M_PI) - M_PI;
+    g_newCmd = false;
+  }
+  else {
+    g_particles = g_particlesPred;
   }
   //
   // Collect the mean measurement for odometry.
@@ -574,8 +588,8 @@ int main(int argc, char **argv)
   Visualizer viz(n);
   //
   //Subscribe to the desired topics and assign callbacks
-  // ros::Subscriber pose_sub_gaz = n.subscribe("/gazebo/model_states", 1, pose_callback); // Gazebo
-  ros::Subscriber pose_sub_tbot = n.subscribe("/indoor_pos", 1, pose_callbackTbot);
+  ros::Subscriber pose_sub_gaz = n.subscribe("/gazebo/model_states", 1, pose_callback); // Gazebo
+  // ros::Subscriber pose_sub_tbot = n.subscribe("/indoor_pos", 1, pose_callbackTbot);
   ros::Subscriber map_sub = n.subscribe("/map", 1, map_callback);
   ros::Subscriber scan_sub = n.subscribe("/scan", 1, scan_callback);
   //
@@ -587,7 +601,7 @@ int main(int argc, char **argv)
   reset_odom_pub = n.advertise<std_msgs::Empty>("mobile_base/commands/reset_odometry", 1, true);
   map_pub = n.advertise<nav_msgs::OccupancyGrid>("OccupancyGrid", 1, true);
   ros::Subscriber odom_sub = n.subscribe("/odom", 1, odom_callback);
-  ros::Subscriber cmd_sub = n.subscribe("/mobile_base/commands/velocity", 1, odom_callback);
+  ros::Subscriber cmd_sub = n.subscribe("/mobile_base/commands/velocity", 1, cmd_callback);
   std_msgs::Empty empty_odom_reset_msg;
   reset_odom_pub.publish(empty_odom_reset_msg);
   usleep(333323);
