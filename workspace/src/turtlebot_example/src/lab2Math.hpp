@@ -1,7 +1,16 @@
 #pragma once
+#ifndef __LAB2_MATH__
+#define __LAB2_MATH__
 #include "Eigen/Dense"
 #include <iostream>
 #include <random>
+
+#define DEBUG
+#ifdef DEBUG
+#define PRINT_MATRIX(m) std::cout << #m << "\n" << m << std::endl;
+#else
+#define PRINT_MATRIX(m)
+#endif
 
 inline double floatMod (
   double x,
@@ -12,7 +21,7 @@ inline double floatMod (
   return result >= 0 ? result : result + y;
 }
 
-Eigen::MatrixXd cumsum1D (
+inline Eigen::MatrixXd cumsum1D (
   Eigen::MatrixXd mat
 )
 {
@@ -167,3 +176,4 @@ return (_transform * Matrix<Scalar,Dynamic,-1>::NullaryExpr(_covar.rows(),nn,ran
     }
 }; // end class EigenMultivariateNormal
 } // end namespace Eigen
+#endif
