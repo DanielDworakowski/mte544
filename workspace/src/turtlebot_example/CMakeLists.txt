@@ -89,7 +89,7 @@ set(_output_cpp ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_INCLUDE_DESTINATION}/${_
 generate_dynamic_reconfigure_options(
   cfg/lab2.cfg
 )
-set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_BUILD_TYPE Debug)
 
 catkin_package(
 #  INCLUDE_DIRS include
@@ -111,9 +111,10 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
   src/
   cfg/
+  config/
 )
 
-add_compile_options(-std=c++11 -Wall -Wextra) # -O3
+add_compile_options(-std=c++11 -Wall -Wextra -O3) # -O3
 
 ## Declare a cpp library
 # add_library(turtlebot_example
@@ -138,6 +139,10 @@ add_compile_options(-std=c++11 -Wall -Wextra) # -O3
 add_executable(lab2_particle
   src/particleFilterNode.cpp
   src/Visualizer.cpp
+)
+
+add_executable(lab3
+  src/lab3.cpp
 )
 
 # add_executable(lab2_viz
@@ -166,6 +171,11 @@ add_executable(lab2_particle
  # )
 
  target_link_libraries(lab2_particle
+   ${catkin_LIBRARIES}
+   ${EIGEN3_LIBRARIES}
+ )
+
+ target_link_libraries(lab3
    ${catkin_LIBRARIES}
    ${EIGEN3_LIBRARIES}
  )
