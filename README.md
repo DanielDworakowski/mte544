@@ -16,7 +16,7 @@ Clone this repo
 
 ```docker build . -t mte544 ```
 
-```docker stop mte544_c; docker rm mte544_c; nvidia-docker run -it --ipc=host --env="DISPLAY" --env="QT_X11_NO_MITSHM=1" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" -v $(pwd)/workspace:/home/user/workspace --privileged --net=host --name mte544_c mte544
+```docker stop mte544_c; docker rm mte544_c; nvidia-docker run -it --ipc=host --env="DISPLAY" --env="QT_X11_NO_MITSHM=1" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" -v $(pwd)/workspace:/home/user/workspace --privileged --net=host --name mte544_c mte544 ```
 
 ```
 

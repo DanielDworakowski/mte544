@@ -5,16 +5,16 @@ project(turtlebot_example)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  gazebo_msgs
   geometry_msgs
+  nav_msgs
   roscpp
   rospy
   sensor_msgs
   std_msgs
   tf
-  dynamic_reconfigure
+  visualization_msgs
 )
-
-find_package (Eigen3 REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -73,7 +73,7 @@ find_package (Eigen3 REQUIRED)
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   geometry_msgs#   sensor_msgs#   std_msgs
+#   gazebo_msgs#   geometry_msgs#   nav_msgs#   sensor_msgs#   std_msgs#   visualization_msgs
 # )
 
 ###################################
@@ -85,18 +85,11 @@ find_package (Eigen3 REQUIRED)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-set(_output_cpp ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_INCLUDE_DESTINATION}/${_cfgonly}Config.h)
-generate_dynamic_reconfigure_options(
-  cfg/lab2.cfg
-)
-set(CMAKE_BUILD_TYPE Debug)
-
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES turtlebot_example
-#  CATKIN_DEPENDS geometry_msgs roscpp rospy sensor_msgs std_msgs tf
+#  CATKIN_DEPENDS gazebo_msgs geometry_msgs nav_msgs roscpp rospy sensor_msgs std_msgs tf visualization_msgs
 #  DEPENDS system_lib
- DEPENDS EIGEN3
 )
 
 ###########
@@ -108,12 +101,7 @@ catkin_package(
 # include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIRS}
-  src/
-  cfg/
 )
-
-add_compile_options(-std=c++11 -Wall -Wextra) # -O3
 
 ## Declare a cpp library
 # add_library(turtlebot_example
@@ -121,59 +109,24 @@ add_compile_options(-std=c++11 -Wall -Wextra) # -O3
 # )
 
 ## Declare a cpp executable
-# add_executable(turtlebot_example_node src/turtlebot_example_node.cpp)
-#
-# add_executable(squareNode
-#   src/squareNode.cpp
-#   src/Pose.cpp
-#   src/PID.cpp
-#   src/SquareCommander.cpp
-# )
-#
-# add_executable(exampleNode2
-#   src/turtlebot_example_node_lab2.cpp
-# )
-#
-
-add_executable(lab2_particle
-  src/particleFilterNode.cpp
-  src/Visualizer.cpp
-)
-
-# add_executable(lab2_viz
-#   src/Visualizer.cpp
-# )
-
-#
-# add_dependencies(lab2_particle ${PROJECT_NAME}_gencfg)
+add_executable(turtlebot_example src/turtlebot_example.cpp)
+add_executable(sim_pose_publisher_node src/sim_pose_publisher.cpp)
+add_executable(vis_pose_publisher_node src/vis_pose_publisher.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(turtlebot_example_node turtlebot_example_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
- # target_link_libraries(turtlebot_example_node
- #   ${catkin_LIBRARIES}
- # )
- #
- # target_link_libraries(squareNode
- #   ${catkin_LIBRARIES}
- # )
- #
- # target_link_libraries(exampleNode2
- #   ${catkin_LIBRARIES}
- #   ${EIGEN3_LIBRARIES}
- # )
-
- target_link_libraries(lab2_particle
+ target_link_libraries(vis_pose_publisher_node
    ${catkin_LIBRARIES}
-   ${EIGEN3_LIBRARIES}
  )
-
- # target_link_libraries(lab2_viz
- #   ${catkin_LIBRARIES}
- #   ${EIGEN3_LIBRARIES}
- # )
+ target_link_libraries(sim_pose_publisher_node
+   ${catkin_LIBRARIES}
+ )
+ target_link_libraries(turtlebot_example
+   ${catkin_LIBRARIES}
+ )
 
 #############
 ## Install ##
