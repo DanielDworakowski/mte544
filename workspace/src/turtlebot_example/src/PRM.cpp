@@ -34,6 +34,7 @@ void PRM::reconfigure(
 {
   (void) level;
   m_nSamples = config.nSamples;
+  m_nSamples = 10;
   m_samples.resize(m_nSamples, 2);
   m_samples.setZero();
   m_configured = true;
@@ -46,7 +47,8 @@ void PRM::map_callback(
 {
   uint32_t sz = std::sqrt(msg.data.size());
   m_map = Eigen::Map<const MatrixXu>(msg.data.data(), sz, sz);
-  m_mapl = sz * msg.info.resolution;
+  m_res = msg.info.resolution;
+  m_mapl = sz * m_res;
   m_nBins = sz;
   m_hasMap = true;
 }
@@ -57,8 +59,6 @@ void PRM::getSample(
   uint32_t & y
 )
 {
-  (void) x;
-  (void) y;
   x = m_dis(m_gen) * m_nBins;
   y = m_dis(m_gen) * m_nBins;
 }
@@ -70,6 +70,7 @@ void PRM::buildMap(
 {
   MatrixXu sampled;
   Eigen::VectorXd sample(2);
+  Eigen::MatrixXd dists(m_nSamples, m_nSamples);
   sampled.resizeLike(m_map);
   sampled.setZero();
   uint32_t nSampled = 0;
@@ -80,17 +81,16 @@ void PRM::buildMap(
     //
     // Check if point has already been sampled or if it is in an obstacle.
     if (m_map(x, y) == 1 || sampled(x, y) == 1) {
-      std::cout << "alreeady sampled\n";
-      std::cout << "nsamples " << nSampled << std::endl;
       continue;
     }
     //
     // Update the sample and place it into the matrix.
     sampled(x, y) = 1;
-    sample(0) = x;
-    sample(1) = y;
+    sample(0) = x * m_res;
+    sample(1) = y * m_res;
     m_samples.row(nSampled) = sample.transpose();
     ++nSampled;
   }
-  PRINT_MATRIX(m_samples)
+  getDists(m_samples, dists);
+  PRINT_MATRIX(dists);
 }

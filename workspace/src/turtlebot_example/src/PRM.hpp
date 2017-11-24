@@ -68,6 +68,9 @@ private:
   // Physical size of the map.
   double m_mapl = 0;
   //
+  // Resolution of the map.
+  double m_res = 0;
+  //
   // The number of bins in one edge of the map.
   uint32_t m_nBins = 0;
   //

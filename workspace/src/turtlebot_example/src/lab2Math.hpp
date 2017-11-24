@@ -7,8 +7,10 @@
 
 #define DEBUG
 #ifdef DEBUG
-#define PRINT_MATRIX(m) std::cout << #m << "\n" << m << std::endl;
+#define PRINT_MATRIX(m) std::cout << #m << " Rows: " << m.rows() << " Cols: " << m.cols() << "\n" << m << std::endl;
+#define DEBUG_LINE std::cout << __LINE__ << std::endl;
 #else
+#define DEBUG_LINE
 #define PRINT_MATRIX(m)
 #endif
 
@@ -176,4 +178,30 @@ return (_transform * Matrix<Scalar,Dynamic,-1>::NullaryExpr(_covar.rows(),nn,ran
     }
 }; // end class EigenMultivariateNormal
 } // end namespace Eigen
+
+inline void getDists(
+  Eigen::MatrixXd & samples,
+  Eigen::MatrixXd & dists
+)
+{
+  const int N = samples.rows();
+  //
+  // Allocate parts of the expression
+  Eigen::MatrixXd XX, YY, XY;
+  XX.resize(N,1);
+  YY.resize(1,N);
+  XY.resize(N,N);
+  //
+  // Compute norms
+  XX = samples.array().square().rowwise().sum();
+  YY = XX.transpose();
+  XY = (2 * samples) * samples.transpose();
+  //
+  // Compute final expression
+  dists = XX * Eigen::MatrixXd::Ones(1,N);
+  dists = dists + Eigen::MatrixXd::Ones(N,1) * YY;
+  dists = dists - XY;
+  dists = dists.array().sqrt();
+}
+
 #endif
