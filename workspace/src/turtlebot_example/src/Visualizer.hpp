@@ -38,7 +38,7 @@ class Visualizer {
     // Publisher for pose goals.
     ros::Subscriber pose_sub;
     ros::Publisher particle_pub;
-    ros::Publisher path_pub;    
+    ros::Publisher path_pub;
     ros::Publisher path_odom_pub;
     geometry_msgs::PoseArray path;
     geometry_msgs::PoseArray path_odom;

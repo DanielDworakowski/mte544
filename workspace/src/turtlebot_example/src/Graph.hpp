@@ -4,6 +4,7 @@
 #include <string>
 
 typedef std::pair<uint32_t, uint32_t> coord;
+#define PRINT_CORD(c) std::cout << " x: " << c.first << << ", y: " c.second << std::endl;
 
 //https://stackoverflow.com/questions/5493474/graph-implementation-c
 struct vertex {

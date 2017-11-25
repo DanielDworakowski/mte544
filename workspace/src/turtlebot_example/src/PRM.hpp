@@ -11,6 +11,10 @@
 #include "Eigen/Dense"
 #include <lab2Math.hpp>
 #include <nav_msgs/OccupancyGrid.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <visualization_msgs/Marker.h>
+#include <geometry_msgs/PoseArray.h>
+#include <geometry_msgs/Pose.h>
 #include "cpp/turtlebot_example/lab3Config.h"
 #include <random>
 #include <cstdint>
@@ -25,7 +29,9 @@ public:
   //
   // Constructor.
   PRM(
-    ros::NodeHandle
+    ros::NodeHandle,
+    coord start,
+    std::vector<coord> goals
   );
   //
   // Destructor.
@@ -40,6 +46,10 @@ public:
   void reconfigure (
     turtlebot_example::lab3Config &config,
     uint32_t level
+  );
+  //
+  // Publish map to rviz.
+  void rviz(
   );
 
 private:
@@ -61,11 +71,22 @@ private:
     Eigen::MatrixXd & dists
   );
   //
+  // Rviz the graph nodes.
+  void vizNodes (
+    Eigen::MatrixXd parts
+  );
+  //
   // Handle.
   ros::NodeHandle m_n;
   //
   // Subscriber.
   ros::Subscriber m_mapSub;
+  //
+  // Vis marker pub.
+  ros::Publisher m_markPub;
+  //
+  // Node publisher.
+  ros::Publisher  m_nodePub;
   //
   // The map.
   MatrixXu m_map;
@@ -88,11 +109,20 @@ private:
   // Resolution of the map.
   double m_res = 0;
   //
+  // The cut off for distance linking.
+  double m_cutoff = 0;
+  //
   // The number of bins in one edge of the map.
   uint32_t m_nBins = 0;
   //
   // List of all samples.
   Eigen::MatrixXd m_samples;
+  //
+  // The starting location.
+  coord m_start;
+  //
+  // The list of goal locations.
+  std::vector<coord> m_goals;
   //
   // Random number stuff.
   std::random_device m_rd;  // Will be used to obtain a seed for the random number engine

@@ -93,7 +93,6 @@ int main(int argc, char **argv) {
   //
   // Setup topics to Publish from this node
   ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
-  marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 1, true);
   //
   // Velocity control variable
   geometry_msgs::Twist vel;
@@ -107,20 +106,29 @@ int main(int argc, char **argv) {
   f = boost::bind(&reconfigureCallback, _1, _2);
   //
   // PRM DO NOT REORDER TOO LAZY TO MAKE THIS WORK PROPERLY need reconfig to happen.
-  g_prm = new PRM(n);
+  coord start = std::make_pair(0,0);
+  std::vector<coord> goals;
+  //
+  // SIM.
+  goals.push_back(std::make_pair(4,0));
+  #pragma message("Find out how to actually transform these into a non-zero based thing")
+  goals.push_back(std::make_pair(8,4));
+  // goals.push_back(std::make_pair(8,-4)); // proper.
+  goals.push_back(std::make_pair(8,0));
+  //
+  // RL.
+  // goals.push_back(std::make_pair(1,3));
+  // goals.push_back(std::make_pair(3,3.5));
+  // goals.push_back(std::make_pair(4.5,0.5));
+  g_prm = new PRM(n, start, goals);
   srv.setCallback(f);
   g_prm->buildMap();
+  g_prm->rviz();
   //
   // Loop.
   while (ros::ok()) {
   	loop_rate.sleep(); //Maintain the loop rate
   	ros::spinOnce();   //Check for new messages
-
- //Draw Curves
-       drawCurve(1);
-       drawCurve(2);
-       drawCurve(4);
-
   	//Main loop code goes here:
   	vel.linear.x = 0.1; // set linear speed
   	vel.angular.z = 0.3; // set angular speed
