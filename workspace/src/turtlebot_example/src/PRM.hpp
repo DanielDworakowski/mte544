@@ -14,6 +14,7 @@
 #include "cpp/turtlebot_example/lab3Config.h"
 #include <random>
 #include <cstdint>
+#include "Graph.hpp"
 //
 // Typedefs.
 typedef Eigen::Matrix<int8_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MatrixXu;
@@ -23,28 +24,41 @@ class PRM {
 public:
   //
   // Constructor.
-  PRM(ros::NodeHandle);
+  PRM(
+    ros::NodeHandle
+  );
   //
   // Destructor.
-  virtual ~PRM();
+  virtual ~PRM (
+  );
   //
   // Build the map.
-  void buildMap();
+  void buildMap (
+  );
   //
   // Reconfigure the map.
-  void reconfigure(turtlebot_example::lab3Config &config, uint32_t level);
+  void reconfigure (
+    turtlebot_example::lab3Config &config,
+    uint32_t level
+  );
 
 private:
   //
   // Read the map.
-  void map_callback(
+  void map_callback (
     const nav_msgs::OccupancyGrid& msg
   );
   //
   // Get a sample.
-  void getSample(
+  void getSample (
     uint32_t & x,
     uint32_t & y
+  );
+  //
+  // Build the graph.
+  void buildGraph (
+    Eigen::VectorXi & I,
+    Eigen::MatrixXd & dists
   );
   //
   // Handle.
@@ -55,6 +69,9 @@ private:
   //
   // The map.
   MatrixXu m_map;
+  //
+  // The actual graph.
+  Graph m_g;
   //
   // Has a map.
   bool m_hasMap = false;

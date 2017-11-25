@@ -145,6 +145,7 @@ add_compile_options(-std=c++11 -Wall -Wextra -O3) # -O3
 add_executable(lab3
   src/lab3.cpp
   src/PRM.cpp
+  src/Graph.cpp
 )
 
 # add_executable(lab2_viz
