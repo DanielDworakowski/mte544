@@ -9,6 +9,7 @@
 
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/Twist.h>
 #include <tf/transform_datatypes.h>
 #include <gazebo_msgs/ModelStates.h>
@@ -18,11 +19,20 @@
 #include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <PRM.hpp>
+#include <PoseController.hpp>
+
 
 ros::Publisher marker_pub;
 PRM * g_prm = NULL;
 
+
 #define TAGID 0
+
+
+double ips_x;
+double ips_y;
+double ips_yaw;
+geometry_msgs::Quaternion ips_orientation;
 
 //Callback function for the Position topic (LIVE)
 
@@ -33,6 +43,20 @@ void pose_callback(const geometry_msgs::PoseWithCovarianceStamped & msg) {
  	double Yaw = tf::getYaw(msg.pose.pose.orientation); // Robot Yaw
 
 	std::cout << "X: " << X << ", Y: " << Y << ", Yaw: " << Yaw << std::endl ;
+}
+
+//Callback function for the Position topic (SIMULATION)
+void pose_callback_sim(const gazebo_msgs::ModelStates& msg) 
+{
+
+    int i;
+    for(i = 0; i < msg.name.size(); i++) if(msg.name[i] == "mobile_base") break;
+
+    ips_x = msg.pose[i].position.x ;
+    ips_y = msg.pose[i].position.y ;
+    ips_orientation = msg.pose[i].orientation;
+    ips_yaw = tf::getYaw(msg.pose[i].orientation);
+
 }
 
 //Example of drawing a curve
@@ -89,7 +113,8 @@ int main(int argc, char **argv) {
   ros::NodeHandle n;
   //
   // Subscribe to the desired topics and assign callbacks
-  ros::Subscriber pose_sub = n.subscribe("/indoor_pos", 1, pose_callback);
+  // ros::Subscriber pose_sub = n.subscribe("/indoor_pos", 1, pose_callback);
+  ros::Subscriber pose_sub = n.subscribe("/gazebo/model_states", 1, pose_callback_sim);
   //
   // Setup topics to Publish from this node
   ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
@@ -97,6 +122,12 @@ int main(int argc, char **argv) {
   // Velocity control variable
   geometry_msgs::Twist vel;
   //
+  // Pose controller
+  PoseController pose_ctrlr(n);
+  //
+  // Pose measurenment and ref
+  geometry_msgs::PoseWithCovarianceStamped pose_meas;
+  geometry_msgs::PoseWithCovarianceStamped pose_ref;  
   // Set the loop rate
   ros::Rate loop_rate(20);    //20Hz update rate
   //
@@ -124,14 +155,18 @@ int main(int argc, char **argv) {
   srv.setCallback(f);
   g_prm->buildMap();
   g_prm->rviz();
-  //
+  
   // Loop.
   while (ros::ok()) {
   	loop_rate.sleep(); //Maintain the loop rate
   	ros::spinOnce();   //Check for new messages
   	//Main loop code goes here:
-  	vel.linear.x = 0.1; // set linear speed
-  	vel.angular.z = 0.3; // set angular speed
+    pose_meas.pose.pose.position.x = ips_x;
+    pose_meas.pose.pose.position.y = ips_y;
+    pose_meas.pose.pose.orientation = ips_orientation;
+    pose_ref.pose.pose.position.x = 0.0;
+    pose_ref.pose.pose.position.y = 0.0;
+    vel = pose_ctrlr.get_vel(pose_meas, pose_ref);
 
   	velocity_publisher.publish(vel); // Publish the command velocity
   }

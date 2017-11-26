@@ -1,0 +1,8 @@
+\subsubsection usage Usage
+\verbatim
+<node name="dynamic_reconfigure_node" pkg="turtlebot_example" type="dynamic_reconfigure_node">
+  <param name="nSamples" type="int" value="10000" />
+  <param name="cutoff" type="int" value="1" />
+</node>
+\endverbatim
+
