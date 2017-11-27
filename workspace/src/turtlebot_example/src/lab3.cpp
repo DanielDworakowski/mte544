@@ -141,11 +141,14 @@ int main(int argc, char **argv) {
   std::vector<coord> goals;
   //
   // SIM.
-  goals.push_back(std::make_pair(4,0));
-  #pragma message("Find out how to actually transform these into a non-zero based thing")
-  goals.push_back(std::make_pair(8,4));
+  // goals.push_back(std::make_pair(4,0));
   // goals.push_back(std::make_pair(8,-4)); // proper.
-  goals.push_back(std::make_pair(8,0));
+  // goals.push_back(std::make_pair(8,0));
+  goals.push_back(std::make_pair(4,2));
+  // goals.push_back(std::make_pair(8,4)); // proper.
+  // goals.push_back(std::make_pair(8,2));
+
+
   //
   // RL.
   // goals.push_back(std::make_pair(1,3));
@@ -154,7 +157,6 @@ int main(int argc, char **argv) {
   g_prm = new PRM(n, start, goals);
   srv.setCallback(f);
   g_prm->buildMap();
-  g_prm->rviz();
 
   // Loop.
   while (ros::ok()) {

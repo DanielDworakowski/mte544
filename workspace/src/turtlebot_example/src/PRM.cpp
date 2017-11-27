@@ -9,11 +9,10 @@ PRM::PRM(
  : m_n(n)
  , m_mapSub(m_n.subscribe("/map", 1, &PRM::map_callback, this))
  , m_markPub(m_n.advertise<visualization_msgs::Marker>("visualization_marker", 1, true))
- , m_trajPub(m_n.advertise<visualization_msgs::Marker>("traj", 1, true))
+ , m_trajPub(m_n.advertise<visualization_msgs::Marker>("traj", 2, true))
  , m_nodePub(m_n.advertise<geometry_msgs::PoseArray>("particle_pose_array", 10))
  , m_start(start)
  , m_goals(goals)
- , m_g(start, goals)
  , m_gen(m_rd())
  , m_dis(0., 1.)
 {
@@ -42,12 +41,12 @@ void PRM::reconfigure(
 {
   (void) level;
   m_nSamples = config.nSamples;
-  m_nSamples = 1000;
+  m_nSamples = 100;
   m_samples.resize(m_nSamples, 2);
   m_samples.setZero();
   m_cutoff = config.cutoff;
   #pragma message("REMOVE ME")
-  m_cutoff = 1;
+  m_cutoff = 2;
   m_configured = true;
 }
 
@@ -64,6 +63,15 @@ void PRM::map_callback(
   m_mapl = sz * m_res;
   m_nBins = sz;
   m_hasMap = true;
+  //
+  // Translate the goal locations from physical coordinates to map coordinates.
+  for (auto & kv : m_goals) {
+    kv.first /= m_res;
+    kv.second /= m_res;
+  }
+  m_start.first /= m_res;
+  m_start.second /= m_res;
+  m_g.setStartAndGoals(m_start, m_goals, sz);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -96,8 +104,8 @@ void PRM::buildMap(
   std::vector<coord> tmpGoals = m_goals;
   tmpGoals.push_back(m_start);
   for (auto & kv : tmpGoals) {
-    x = kv.first / m_res;
-    y = kv.second / m_res;
+    x = kv.first;
+    y = kv.second;
     if (x >= m_nBins || y >= m_nBins) {
       std::cout << "Likely passed Negative goal locations will fail now.\n";
     }
@@ -106,6 +114,7 @@ void PRM::buildMap(
     sample(1) = y;
     m_samples.row(nSampled) = sample.transpose();
     ++nSampled;
+    PRINT_CORD(kv)
   }
   //
   // Start random sampling.
@@ -157,11 +166,14 @@ void PRM::buildGraph(
     }
     origin = m_samples.row(x_idx);
     dest = m_samples.row(y_idx);
-    if (collision(origin(0), origin(1),dest(0), dest(1))) {
-      continue;
-    }
     o = std::make_pair(origin(0), origin(1));
     d = std::make_pair(dest(0), dest(1));
+    if (o == m_start || d == m_start) {
+      std::cout << "O  / d \n";
+    }
+    if (collision(origin(0), origin(1), dest(0), dest(1)) && !(o == m_start || d == m_start)) {
+      continue;
+    }
     cost = dists(x_idx, y_idx);
     //
     // The graph itself will deal with doubles, and the second connection happens since we have all values in both directions.
@@ -170,9 +182,11 @@ void PRM::buildGraph(
     m_g.addedge(o, d, cost);
   }
   // PRINT_MATRIX(m_samples)
-  // m_g.print();
-  // m_g.aStar();
-  // vizPath(path);
+  m_g.print();
+  rviz();
+
+  auto path = m_g.aStar();
+  vizPath(path);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -263,20 +277,32 @@ void PRM::vizPath(
   // Visualize connections.
   lines.header.frame_id = "/map";
   lines.id = ++cnt; //each curve must have a unique id or you will overwrite an old ones
-  lines.type = visualization_msgs::Marker::LINE_STRIP;
+  lines.type = visualization_msgs::Marker::LINE_LIST;
   lines.action = visualization_msgs::Marker::ADD;
   lines.ns = "curves";
   lines.scale.x = 0.01;
-  lines.color.r = 1.0;
+  lines.color.r = 0.2;
   lines.color.b = 0.2;
+  lines.color.g = 1.0;
   lines.color.a = 1.0;
+
+  top = path.top();
+  path.pop();
+  p.x = top.first * m_res;
+  p.y = top.second * m_res;
+  lines.points.push_back(p);
+
   while (!path.empty()) {
     top = path.top();
+    PRINT_CORD(top)
+    p.x = top.first * m_res;
+    p.y = top.second * m_res;
     lines.points.push_back(p);
-    p.x = top.first;
-    p.y = top.second;
+    lines.points.push_back(p);
     path.pop();
   }
+  lines.points.pop_back();
+  std::cout << "l: " << lines << std::endl;
   m_trajPub.publish(lines);
 
 }

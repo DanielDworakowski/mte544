@@ -1,4 +1,5 @@
 #include <Graph.hpp>
+#include <cstring>
 
 ///////////////////////////////////////////////////////////////
 void Graph::addvertex(
@@ -49,54 +50,87 @@ std::stack<coord> Graph::aStar() {
     bool goalReached = false;
     std::stack<coord> bestPath;
     //
-    startNode.loc = m_start;
+    // startNode.loc = m_start;
+    startNode = *m_vtx[m_start];
     //
     //main loop that runs for 3 times
     for(auto & wayPoint : m_goals){
-        goalNode.loc = wayPoint;
-        std::priority_queue<vertex, std::vector<vertex>, LessThanByFullCost> openList;
-        std::vector<vertex> closedList;
+        PRINT_CORD(wayPoint)
+        goalNode = *m_vtx[wayPoint];
+        std::priority_queue<vertex *, std::vector<vertex*>, LessThanByFullCost> openList;
+        std::vector<vertex*> closedList;
+        uint32_t flat = 0;
+        uint8_t * visited = new uint8_t[m_sz*m_sz];
+        memset(visited, 0, m_sz*m_sz);
         //
-        openList.push(startNode);
+        openList.push(&startNode);
         //
+        //
+        DEBUG_LINE
         while(!openList.empty()){
+          DEBUG_LINE
+          //
+          //pop top of the openList
+          auto currentNode = openList.top();
+          openList.pop();
+          //
+          //change to more effienceint
+          flat = FLATTEN(currentNode->loc);
+          if (visited[flat]) {
+            continue;
+          }
+          // for(auto & node : closedList){
+          //     if (node.loc == currentNode->loc){
+          //         goto check_;
+          //     }
+          // }
+          //
+          //things in the adjency list
+          for(auto & aNode : currentNode->adj){
             //
-            //pop top of the openList
-            check_:
-            auto currentNode = openList.top();
-            openList.pop();
-            //
-            //change to more effienceint
-            for(auto & node : closedList){
-                if (node.loc == currentNode.loc){
-                    goto check_;
-                }
+            // Check if the node is already in the list.
+            flat = FLATTEN(aNode.second->loc);
+            if (visited[flat]) {
+              continue;
             }
             //
-            //things in the adjency list
-            for(auto & aNode : currentNode.adj){
-                //
-                //calculate costs
-                aNode.second->h = std::sqrt(std::pow((aNode.second->loc.first - goalNode.loc.first), 2.0)+std::pow((aNode.second->loc.second - goalNode.loc.second), 2.0));
-                aNode.second->g = aNode.first + currentNode.g;
-                aNode.second->f = aNode.second->g + aNode.second->h;
-                //point parent to currentNode
-                aNode.second->parent = &currentNode;
-                //
-                // push adjecent nodes into openList
-                openList.push(*aNode.second);
-            }
+            //calculate costs
+            aNode.second->h = std::sqrt(std::pow((aNode.second->loc.first - goalNode.loc.first), 2.0)+std::pow((aNode.second->loc.second - goalNode.loc.second), 2.0));
+            aNode.second->g = aNode.first + currentNode->g;
+            aNode.second->f = aNode.second->g + aNode.second->h;
+            //point parent to currentNode
+            aNode.second->parent = currentNode;
+            std::cout << "Parent: ";
+            PRINT_CORD(currentNode->loc)
+            std::cout << "child: ";
+            std::cout << "par addr " << aNode.second->parent << std::endl;
+            PRINT_CORD(aNode.second->loc)
             //
-            //push currentNode to closed list
-            closedList.push_back(currentNode);
-            //
-            //check if it reached its goalNode
-            if(currentNode.loc == goalNode.loc){
-                goalNode = currentNode; // update to get cost and parent
-                goalReached = 1;
-                break;
-            }
+            // push adjecent nodes into openList
+            openList.push(aNode.second);
+          }
+          //
+          //push currentNode to closed list
+          closedList.push_back(currentNode);
+          flat = FLATTEN(currentNode->loc);
+          visited[flat] = 1;
+          //
+          //check if it reached its goalNode
+          if(currentNode->loc == goalNode.loc){
+              goalNode = *currentNode; // update to get cost and parent
+
+              PRINT_CORD(currentNode->loc)
+              std::cout << "goal par addr " << goalNode.parent << std::endl;
+
+              if (currentNode->parent == NULL) {
+                std::cout << "NULL!@!!!!\n";
+              }
+              goalReached = 1;
+              DEBUG_LINE
+              break;
+          }
         }
+
         //
         //check if there is no path
         if(!goalReached){
@@ -107,14 +141,20 @@ std::stack<coord> Graph::aStar() {
         temp = goalNode;
         //
         //decrale a list of flots
+        DEBUG_LINE
         while(temp.loc != startNode.loc){
-            //add to the list
-            bestPath.push(temp.loc);
-            temp = *temp.parent;
+          //add to the list
+          bestPath.push(temp.loc);
+          PRINT_CORD(temp.loc)
+          temp = *temp.parent;
         }
-        startNode.loc = wayPoint;
+        bestPath.push(temp.loc);
+        #pragma message("Pass adjacency")
+        startNode = *m_vtx[wayPoint];
         startNode.parent =  temp.parent;
         startNode.g = 0.0;
+        std::cout << "DONE A* loop\n";
+        delete visited;
     }
 
     return bestPath;
