@@ -9,6 +9,7 @@ PRM::PRM(
  : m_n(n)
  , m_mapSub(m_n.subscribe("/map", 1, &PRM::map_callback, this))
  , m_markPub(m_n.advertise<visualization_msgs::Marker>("visualization_marker", 1, true))
+ , m_trajPub(m_n.advertise<visualization_msgs::Marker>("traj", 1, true))
  , m_nodePub(m_n.advertise<geometry_msgs::PoseArray>("particle_pose_array", 10))
  , m_start(start)
  , m_goals(goals)
@@ -170,6 +171,8 @@ void PRM::buildGraph(
   }
   // PRINT_MATRIX(m_samples)
   // m_g.print();
+  // m_g.aStar();
+  // vizPath(path);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -235,6 +238,47 @@ void PRM::vizNodes(
     particles.poses.push_back(pose);
   }
   m_nodePub.publish(particles);
+}
+
+///////////////////////////////////////////////////////////////
+void PRM::vizPath(
+  std::stack<coord> path
+)
+{
+  coord top;
+  uint32_t cnt = 0;
+  geometry_msgs::Point p;
+  visualization_msgs::Marker lines;
+  visualization_msgs::Marker deleteMsg;
+  p.z = 0; //not used
+  //
+  // Visualize all samples.
+  vizNodes(m_samples);
+  //
+  // Delete all previous visualizations.
+  deleteMsg.header.frame_id = "/map";
+  deleteMsg.action = visualization_msgs::Marker::DELETEALL;
+  m_trajPub.publish(deleteMsg);
+  //
+  // Visualize connections.
+  lines.header.frame_id = "/map";
+  lines.id = ++cnt; //each curve must have a unique id or you will overwrite an old ones
+  lines.type = visualization_msgs::Marker::LINE_STRIP;
+  lines.action = visualization_msgs::Marker::ADD;
+  lines.ns = "curves";
+  lines.scale.x = 0.01;
+  lines.color.r = 1.0;
+  lines.color.b = 0.2;
+  lines.color.a = 1.0;
+  while (!path.empty()) {
+    top = path.top();
+    lines.points.push_back(p);
+    p.x = top.first;
+    p.y = top.second;
+    path.pop();
+  }
+  m_trajPub.publish(lines);
+
 }
 
 ///////////////////////////////////////////////////////////////

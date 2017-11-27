@@ -19,6 +19,7 @@
 #include <random>
 #include <cstdint>
 #include "Graph.hpp"
+#include <stack>
 //
 // Typedefs.
 typedef Eigen::Matrix<int8_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MatrixXu;
@@ -76,6 +77,11 @@ private:
     Eigen::MatrixXd parts
   );
   //
+  // Rviz the graph nodes.
+  void vizPath (
+    std::stack<coord> path
+  );
+  //
   // Map expansion
   void expansion (
   );
@@ -88,6 +94,9 @@ private:
   //
   // Vis marker pub.
   ros::Publisher m_markPub;
+  //
+  // Vis traj pub.
+  ros::Publisher m_trajPub;
   //
   // Node publisher.
   ros::Publisher m_nodePub;
