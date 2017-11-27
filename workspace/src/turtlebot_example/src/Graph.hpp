@@ -3,6 +3,9 @@
 #include <map>
 #include <string>
 #include <stack>
+#include <queue>
+#include <cmath>
+#include <stdexcept>
 
 typedef std::pair<uint32_t, uint32_t> coord;
 #define PRINT_CORD(c) std::cout << " x: " << c.first << << ", y: " c.second << std::endl;
@@ -31,6 +34,7 @@ public:
     void addvertex(const coord&);
     void addedge(const coord& from, const coord& to, double cost);
     void print();
+    std::stack<coord> aStar();
     //
     // locations of the start and goals.
     coord m_start;

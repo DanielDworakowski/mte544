@@ -44,17 +44,18 @@ void Graph::print (
 std::stack<coord> Graph::aStar() {
     //
     //
-    vertex goalNode, startNode, temp;
+    coord zeros = std::make_pair(0,0);
+    vertex goalNode(zeros), startNode(zeros), temp(zeros);
     bool goalReached = false;
-    std::stack<vertex> bestPath;
+    std::stack<coord> bestPath;
     //
     startNode.loc = m_start;
     //
     //main loop that runs for 3 times
     for(auto & wayPoint : m_goals){
         goalNode.loc = wayPoint;
-        std::priority_queue<node, std::vector<node>, LessThanByFullCost> openList;
-        std::vector<node> closedList;
+        std::priority_queue<vertex, std::vector<vertex>, LessThanByFullCost> openList;
+        std::vector<vertex> closedList;
         //
         openList.push(startNode);
         //
@@ -62,7 +63,8 @@ std::stack<coord> Graph::aStar() {
             //
             //pop top of the openList
             check_:
-            auto currentNode = openList.pop();
+            auto currentNode = openList.top();
+            openList.pop();
             //
             //change to more effienceint
             for(auto & node : closedList){
@@ -72,17 +74,17 @@ std::stack<coord> Graph::aStar() {
             }
             //
             //things in the adjency list
-            for(auto & aNode : currentNode.second->adj){
+            for(auto & aNode : currentNode.adj){
                 //
                 //calculate costs
-                aNode.h = sqrt(pow((aNode.loc.fist - goalNode.loc.first), 2.0)+pow((aNode.loc.second - goalNode.loc.second), 2.0));
-                aNode.g = aNode.first->adj + currentNode.g;///need to verify
-                aNode.f = aNode.g + aNode.h;
+                aNode.second->h = std::sqrt(std::pow((aNode.second->loc.first - goalNode.loc.first), 2.0)+std::pow((aNode.second->loc.second - goalNode.loc.second), 2.0));
+                aNode.second->g = aNode.first + currentNode.g;
+                aNode.second->f = aNode.second->g + aNode.second->h;
                 //point parent to currentNode
-                aNode.parent = &currentNode;
+                aNode.second->parent = &currentNode;
                 //
                 // push adjecent nodes into openList
-                openList.push(aNode);
+                openList.push(*aNode.second);
             }
             //
             //push currentNode to closed list
@@ -91,15 +93,14 @@ std::stack<coord> Graph::aStar() {
             //check if it reached its goalNode
             if(currentNode.loc == goalNode.loc){
                 goalNode = currentNode; // update to get cost and parent
-                goalReached = true;
+                goalReached = 1;
                 break;
             }
         }
         //
         //check if there is no path
         if(!goalReached){
-            std::cout << "No path has been found\n";
-            return false;
+            throw std::logic_error( "No path has been found\n" );
         }
         //
         //
@@ -108,8 +109,8 @@ std::stack<coord> Graph::aStar() {
         //decrale a list of flots
         while(temp.loc != startNode.loc){
             //add to the list
-            bestPath.push_back(temp.loc);
-            temp = temp->parent;//Aajksjdjsakjsdkljsdalkjas
+            bestPath.push(temp.loc);
+            temp = *temp.parent;
         }
         startNode.loc = wayPoint;
         startNode.parent =  temp.parent;
