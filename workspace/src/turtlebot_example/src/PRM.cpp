@@ -58,6 +58,7 @@ void PRM::map_callback(
   uint32_t sz = std::sqrt(msg.data.size());
   m_map = Eigen::Map<const MatrixXu>(msg.data.data(), sz, sz);
   m_map.transposeInPlace();
+  expansion();
   m_res = msg.info.resolution;
   m_mapl = sz * m_res;
   m_nBins = sz;
@@ -155,6 +156,9 @@ void PRM::buildGraph(
     }
     origin = m_samples.row(x_idx);
     dest = m_samples.row(y_idx);
+    if (collision(origin(0), origin(1),dest(0), dest(1))) {
+      continue;
+    }
     o = std::make_pair(origin(0), origin(1));
     d = std::make_pair(dest(0), dest(1));
     cost = dists(x_idx, y_idx);
@@ -231,4 +235,62 @@ void PRM::vizNodes(
     particles.poses.push_back(pose);
   }
   m_nodePub.publish(particles);
+}
+
+///////////////////////////////////////////////////////////////
+void PRM::expansion()
+{
+  /*new_vector  = Eigen::VectorXu
+  for (uint32_t i = 0; idx < sz; ++idx) {
+    for (uint32_t i = 0; idx < sz; ++idx) {
+      new_vector()
+    }
+  }
+  m_expanded.publish();*/
+}
+
+///////////////////////////////////////////////////////////////
+short sgn(int x) { return x >= 0 ? 1 : -1; }
+
+bool PRM::collision(
+  uint32_t x0,
+  uint32_t y0,
+  uint32_t x1,
+  uint32_t y1
+)
+{
+  bool collided = false;
+
+  int dx = abs(x1 - x0);
+  int dy = abs(y1 - y0);
+  int dx2 = x1 - x0;
+  int dy2 = y1 - y0;
+
+  const bool s = abs(dy) > abs(dx);
+
+  if (s) {
+      int dx2 = dx;
+      dx = dy;
+      dy = dx2;
+  }
+
+  int inc1 = 2 * dy;
+  int d = inc1 - dx;
+  int inc2 = d - dx;
+
+  while (x0 != x1 || y0 != y1) {
+      if (s) y0+=sgn(dy2); else x0+=sgn(dx2);
+      if (d < 0) d += inc1;
+      else {
+          d += inc2;
+          if (s) x0+=sgn(dx2); else y0+=sgn(dy2);
+      }
+
+      //Add point to vector
+      if (m_map(x0,y0) !=0){
+        collided = true;
+        break;
+      }
+  }
+  return collided;
 }

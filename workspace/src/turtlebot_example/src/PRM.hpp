@@ -76,6 +76,10 @@ private:
     Eigen::MatrixXd parts
   );
   //
+  // Map expansion
+  void expansion (
+  );
+  //
   // Handle.
   ros::NodeHandle m_n;
   //
@@ -86,10 +90,24 @@ private:
   ros::Publisher m_markPub;
   //
   // Node publisher.
-  ros::Publisher  m_nodePub;
+  ros::Publisher m_nodePub;
+  //
+  // Expanded Map Publisher.
+  ros::Publisher m_expanded;
   //
   // The map.
   MatrixXu m_map;
+  //
+  // The actual graph.
+  Graph m_g;
+  //
+  // Collision Detection between 2 points
+  bool collision (
+    uint32_t,
+    uint32_t,
+    uint32_t,
+    uint32_t
+  );
   //
   // Has a map.
   bool m_hasMap = false;

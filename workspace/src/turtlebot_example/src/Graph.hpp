@@ -12,8 +12,8 @@ struct vertex {
     std::vector<ve> adj; //cost of edge, destination vertex
     coord loc;
     vertex(coord s) : loc(s) {}
-    vertex *parent;
-    float h,g,f; // h heuristic cost, g cost to go to that node + prev cost, f full cost
+    vertex *parent; //does it need to point to null?
+    float h,g,f // h heuristic cost, g cost to go to that node + prev cost, f full cost
 };
 
 struct LessThanByFullCost{
