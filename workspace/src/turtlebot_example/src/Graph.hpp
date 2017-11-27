@@ -2,6 +2,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <stdio.h>
 
 typedef std::pair<uint32_t, uint32_t> coord;
 #define PRINT_CORD(c) std::cout << " x: " << c.first << << ", y: " c.second << std::endl;
@@ -12,7 +13,7 @@ struct vertex {
     std::vector<ve> adj; //cost of edge, destination vertex
     coord loc;
     vertex(coord s) : loc(s) {}
-    vertex *parent;
+    vertex *parent; //does it need to point to null?
     float h,g,f // h heuristic cost, g cost to go to that node + prev cost, f full cost
 };
 

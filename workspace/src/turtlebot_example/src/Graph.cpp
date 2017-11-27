@@ -40,12 +40,12 @@ void Graph::print (
   }
 }
 //
-// A* algorithm
-bool aStar() {
+/////////////////////// A* algorithm////////////////////////////
+bool Graph::aStar() {
     //
     // declare start and end
-    node startNode = (parent_, x_, y_, h_, g_, f_ );
-    node goalNode = (parent_, x_, y_, h_, g_, f_ );
+    //node startNode = (parent_, x_, y_, h_, g_, f_ );
+    //node goalNode = (parent_, x_, y_, h_, g_, f_ );
     //
     // initialize 2 lists
     std::priority_queue<node, std::vector<node>, LessThanByFullCost> openList;
@@ -56,17 +56,21 @@ bool aStar() {
     while(!openList.empty()){
       //
       //pop top of the openList
-      if(openList.top().loc ==
-      openList.pop()
-
+      check_:
       auto current = openList.pop();
-
+      //
+      //check if the popped is in the closedList, pop again
+      for(auto & node_ : closedList){
+        if (node_.loc == current.loc){
+          goto check_;
+        }
+      }
       //
       //things in the adjency list //dont go to nodes in the closedList
-      for(auto & vtx : current.second->adj){
+      for(auto & aNode_ : current.second->adj){
         //
         //calculate h
-        neighbour.h = sqrt(pow((neighbour.first - goalNode.first), 2.0) + pow((neighbour.second - goalNode.second), 2.0));
+        neighbour.h = sqrt(pow((neighbour.loc.first - goalNode.first), 2.0) + pow((neighbour.loc.second - goalNode.second), 2.0));
         //
         // calculate neighbor's g  and f
         neighbour.g = cost ; // WRONG need to fix
