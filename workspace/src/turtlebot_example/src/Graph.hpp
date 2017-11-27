@@ -2,6 +2,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <stack>
 
 typedef std::pair<uint32_t, uint32_t> coord;
 #define PRINT_CORD(c) std::cout << " x: " << c.first << << ", y: " c.second << std::endl;
