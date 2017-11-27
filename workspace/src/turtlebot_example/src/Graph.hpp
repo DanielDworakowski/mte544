@@ -24,8 +24,8 @@ struct vertex {
 struct LessThanByFullCost{
   bool operator()(const vertex * old_, const vertex * new_) const
   {
-    // return old_->f < new_->f;
-    return old_->f > new_->f;
+    return old_->f < new_->f;
+    // return old_->f > new_->f;
   }
 };
 
