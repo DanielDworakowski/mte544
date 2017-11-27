@@ -46,10 +46,10 @@ void pose_callback(const geometry_msgs::PoseWithCovarianceStamped & msg) {
 }
 
 //Callback function for the Position topic (SIMULATION)
-void pose_callback_sim(const gazebo_msgs::ModelStates& msg) 
+void pose_callback_sim(const gazebo_msgs::ModelStates& msg)
 {
 
-    int i;
+    uint32_t i;
     for(i = 0; i < msg.name.size(); i++) if(msg.name[i] == "mobile_base") break;
 
     ips_x = msg.pose[i].position.x ;
@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
   //
   // Pose measurenment and ref
   geometry_msgs::PoseWithCovarianceStamped pose_meas;
-  geometry_msgs::PoseWithCovarianceStamped pose_ref;  
+  geometry_msgs::PoseWithCovarianceStamped pose_ref;
   // Set the loop rate
   ros::Rate loop_rate(20);    //20Hz update rate
   //
@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
   srv.setCallback(f);
   g_prm->buildMap();
   g_prm->rviz();
-  
+
   // Loop.
   while (ros::ok()) {
   	loop_rate.sleep(); //Maintain the loop rate
