@@ -13,7 +13,7 @@ struct vertex {
     coord loc;
     vertex(coord s) : loc(s) {}
     vertex *parent;
-    float h,g,f // h heuristic cost, g cost to go to that node + prev cost, f full cost
+    float h,g,f; // h heuristic cost, g cost to go to that node + prev cost, f full cost
 };
 
 struct LessThanByFullCost{
@@ -30,4 +30,16 @@ public:
     void addvertex(const coord&);
     void addedge(const coord& from, const coord& to, double cost);
     void print();
+    //
+    // locations of the start and goals.
+    coord m_start;
+    std::vector<coord> m_goals;
+    //
+    // Constructor
+    Graph(
+      coord start,
+      std::vector<coord> goals
+    )
+    : m_start(start)
+    , m_goals(goals) {}
 };

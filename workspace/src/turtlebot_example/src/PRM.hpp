@@ -91,9 +91,6 @@ private:
   // The map.
   MatrixXu m_map;
   //
-  // The actual graph.
-  Graph m_g;
-  //
   // Has a map.
   bool m_hasMap = false;
   //
@@ -123,6 +120,9 @@ private:
   //
   // The list of goal locations.
   std::vector<coord> m_goals;
+  //
+  // The actual graph.
+  Graph m_g;
   //
   // Random number stuff.
   std::random_device m_rd;  // Will be used to obtain a seed for the random number engine

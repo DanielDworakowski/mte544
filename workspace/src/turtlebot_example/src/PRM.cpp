@@ -12,6 +12,7 @@ PRM::PRM(
  , m_nodePub(m_n.advertise<geometry_msgs::PoseArray>("particle_pose_array", 10))
  , m_start(start)
  , m_goals(goals)
+ , m_g(start, goals)
  , m_gen(m_rd())
  , m_dis(0., 1.)
 {
@@ -58,7 +59,6 @@ void PRM::map_callback(
   m_map = Eigen::Map<const MatrixXu>(msg.data.data(), sz, sz);
   m_map.transposeInPlace();
   m_res = msg.info.resolution;
-  std::cout << "info: " << msg.info << std::endl;
   m_mapl = sz * m_res;
   m_nBins = sz;
   m_hasMap = true;
