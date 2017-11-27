@@ -49,7 +49,7 @@ void pose_callback(const geometry_msgs::PoseWithCovarianceStamped & msg) {
 void pose_callback_sim(const gazebo_msgs::ModelStates& msg)
 {
 
-    int i;
+    uint32_t i;
     for(i = 0; i < msg.name.size(); i++) if(msg.name[i] == "mobile_base") break;
 
     ips_x = msg.pose[i].position.x ;

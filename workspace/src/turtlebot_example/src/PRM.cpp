@@ -51,7 +51,7 @@ void PRM::reconfigure(
 
 ///////////////////////////////////////////////////////////////
 void PRM::map_callback(
-  const nav_msgs::OccupancyGrid& msg
+  const nav_msgs::OccupancyGrid & msg
 )
 {
   uint32_t sz = std::sqrt(msg.data.size());
@@ -59,6 +59,7 @@ void PRM::map_callback(
   m_map.transposeInPlace();
   expansion();
   m_res = msg.info.resolution;
+  std::cout << "info: " << msg.info << std::endl;
   m_mapl = sz * m_res;
   m_nBins = sz;
   m_hasMap = true;
@@ -167,8 +168,8 @@ void PRM::buildGraph(
     m_g.addvertex(d);
     m_g.addedge(o, d, cost);
   }
-  PRINT_MATRIX(m_samples)
-  m_g.print();
+  // PRINT_MATRIX(m_samples)
+  // m_g.print();
 }
 
 ///////////////////////////////////////////////////////////////

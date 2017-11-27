@@ -1,3 +1,5 @@
 workspace/build/*
 workspace/devel/*
 .catkin_workspace
+workspace/src/turtlebot_example/docs/
+workspace/src/turtlebot_example/cfg/cpp/
