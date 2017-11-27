@@ -98,9 +98,6 @@ private:
   // The map.
   MatrixXu m_map;
   //
-  // The actual graph.
-  Graph m_g;
-  //
   // Collision Detection between 2 points
   bool collision (
     uint32_t,

@@ -13,7 +13,7 @@ struct vertex {
     coord loc;
     vertex(coord s) : loc(s) {}
     vertex *parent; //does it need to point to null?
-    float h,g,f // h heuristic cost, g cost to go to that node + prev cost, f full cost
+    float h,g,f; // h heuristic cost, g cost to go to that node + prev cost, f full cost
 };
 
 struct LessThanByFullCost{
@@ -30,6 +30,7 @@ public:
     void addvertex(const coord&);
     void addedge(const coord& from, const coord& to, double cost);
     void print();
+    bool aStar();
     //
     // locations of the start and goals.
     coord m_start;
