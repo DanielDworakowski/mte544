@@ -115,19 +115,6 @@ int main(int argc, char **argv) {
   // Subscribe to the desired topics and assign callbacks
   // ros::Subscriber pose_sub = n.subscribe("/indoor_pos", 1, pose_callback);
   ros::Subscriber pose_sub = n.subscribe("/gazebo/model_states", 1, pose_callback_sim);
-  //
-  // Setup topics to Publish from this node
-  ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
-  //
-  // Velocity control variable
-  geometry_msgs::Twist vel;
-  //
-  // Pose controller
-  PoseController pose_ctrlr(n);
-  //
-  // Pose measurenment and ref
-  geometry_msgs::PoseWithCovarianceStamped pose_meas;
-  geometry_msgs::PoseWithCovarianceStamped pose_ref;
   // Set the loop rate
   ros::Rate loop_rate(20);    //20Hz update rate
   //
@@ -147,8 +134,19 @@ int main(int argc, char **argv) {
   //goals.push_back(std::make_pair(4,2));
   //goals.push_back(std::make_pair(8,4)); // proper.
   goals.push_back(std::make_pair(8,2));
-
-
+  //
+  // Setup topics to Publish from this node
+  ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
+  //
+  // Velocity control variable
+  geometry_msgs::Twist vel;
+  //
+  // Pose controller
+  PoseController pose_ctrlr(n);
+  //
+  // Pose measurenment and ref
+  geometry_msgs::PoseWithCovarianceStamped pose_meas;
+  geometry_msgs::PoseWithCovarianceStamped pose_ref;
   //
   // RL.
   // goals.push_back(std::make_pair(1,3));
@@ -162,15 +160,34 @@ int main(int argc, char **argv) {
   while (ros::ok()) {
   	loop_rate.sleep(); //Maintain the loop rate
   	ros::spinOnce();   //Check for new messages
-  	//Main loop code goes here:
-    pose_meas.pose.pose.position.x = ips_x;
-    pose_meas.pose.pose.position.y = ips_y;
-    pose_meas.pose.pose.orientation = ips_orientation;
-    pose_ref.pose.pose.position.x = 0.0;
-    pose_ref.pose.pose.position.y = 0.0;
-    vel = pose_ctrlr.get_vel(pose_meas, pose_ref);
 
-  	velocity_publisher.publish(vel); // Publish the command velocity
+    ////////////////// Follow Path ////////////////////////////
+    // Eigen::MatrixXd path_matrix;
+    // double dist_error;
+    // double min_dist_error = 0.1;
+    // int num_points = path_matrix.rows();
+    // for (int i = 0; i < num_points; ++i) {
+    //   do
+    //   {
+    //     double x_meas = ips_x; // Robot X position
+    //     double y_meas = ips_y; // Robot Y position
+    //     double x_ref = path_matrix(i, 0); // Robot ref x position
+    //     double y_ref = path_matrix(i, 1); // Robot ref y position
+    //     double y_diff = y_ref - y_meas;
+    //     double x_diff = x_ref - x_meas;
+    //     dist_error = std::sqrt(std::pow(y_diff,2) + std::pow(x_diff,2));
+
+    //     //Main loop code goes here:
+    //     pose_meas.pose.pose.position.x = ips_x;
+    //     pose_meas.pose.pose.position.y = ips_y;
+    //     pose_meas.pose.pose.orientation = ips_orientation;
+    //     pose_ref.pose.pose.position.x = x_ref;
+    //     pose_ref.pose.pose.position.y = y_ref;
+    //     vel = pose_ctrlr.get_vel(pose_meas, pose_ref);
+
+    //     velocity_publisher.publish(vel); // Publish the command velocity
+    //   }while(dist_error > min_dist_error);
+    // }
   }
 
   delete g_prm;
