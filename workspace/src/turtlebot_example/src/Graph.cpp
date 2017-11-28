@@ -55,7 +55,6 @@ std::stack<coord> Graph::aStar() {
     //
     //main loop that runs for 3 times
     for(auto & wayPoint : m_goals){
-        PRINT_CORD(wayPoint)
         goalNode = *m_vtx[wayPoint];
         std::priority_queue<vertex *, std::vector<vertex*>, LessThanByFullCost> openList;
         std::vector<vertex*> closedList;
@@ -79,11 +78,6 @@ std::stack<coord> Graph::aStar() {
           if (visited[flat]) {
             continue;
           }
-          // for(auto & node : closedList){
-          //     if (node.loc == currentNode->loc){
-          //         goto check_;
-          //     }
-          // }
           //
           //things in the adjency list
           for(auto & aNode : currentNode->adj){
@@ -95,16 +89,12 @@ std::stack<coord> Graph::aStar() {
             }
             //
             //calculate costs
-            aNode.second->h = std::sqrt(std::pow((aNode.second->loc.first - goalNode.loc.first), 2.0)+std::pow((aNode.second->loc.second - goalNode.loc.second), 2.0));
-            aNode.second->g = aNode.first + currentNode->g;
+            aNode.second->h =m_rez*(std::sqrt(std::pow((double(aNode.second->loc.first) - double(goalNode.loc.first)), 2)+std::pow((double(aNode.second->loc.second) - double(goalNode.loc.second)), 2)));
+            aNode.second->g = aNode.first + m_rez*(currentNode->g);
             aNode.second->f = aNode.second->g + aNode.second->h;
+            // std::cout << "h cost: " << aNode.second->h << std::endl;
             //point parent to currentNode
             aNode.second->parent = currentNode;
-            std::cout << "Parent: ";
-            PRINT_CORD(currentNode->loc)
-            std::cout << "child: ";
-            std::cout << "par addr " << aNode.second->parent << std::endl;
-            PRINT_CORD(aNode.second->loc)
             //
             // push adjecent nodes into openList
             openList.push(aNode.second);
@@ -118,13 +108,6 @@ std::stack<coord> Graph::aStar() {
           //check if it reached its goalNode
           if(currentNode->loc == goalNode.loc){
               goalNode = *currentNode; // update to get cost and parent
-
-              PRINT_CORD(currentNode->loc)
-              std::cout << "goal par addr " << goalNode.parent << std::endl;
-
-              if (currentNode->parent == NULL) {
-                std::cout << "NULL!@!!!!\n";
-              }
               goalReached = 1;
               DEBUG_LINE
               break;
@@ -145,7 +128,6 @@ std::stack<coord> Graph::aStar() {
         while(temp.loc != startNode.loc){
           //add to the list
           bestPath.push(temp.loc);
-          PRINT_CORD(temp.loc)
           temp = *temp.parent;
         }
         bestPath.push(temp.loc);

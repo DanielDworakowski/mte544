@@ -11,6 +11,7 @@
 typedef std::pair<uint32_t, uint32_t> coord;
 #define PRINT_CORD(c) std::cout << #c << " x: " << c.first << ", y: " << c.second << std::endl;
 #define FLATTEN(c) ((c).first * m_sz + (c).second)
+
 //https://stackoverflow.com/questions/5493474/graph-implementation-c
 struct vertex {
     typedef std::pair<double, vertex*> ve;
@@ -24,8 +25,8 @@ struct vertex {
 struct LessThanByFullCost{
   bool operator()(const vertex * old_, const vertex * new_) const
   {
-    return old_->f < new_->f;
-    // return old_->f > new_->f;
+    //return old_->f < new_->f;
+     return old_->f > new_->f;
   }
 };
 
@@ -42,16 +43,19 @@ public:
     coord m_start;
     std::vector<coord> m_goals;
     uint32_t m_sz;
+    double m_rez;
     //
     // Constructor
     void setStartAndGoals(
       coord start,
       std::vector<coord> goals,
-      uint32_t sz
+      uint32_t sz,
+      double rez
     )
     {
       m_start = start;
       m_goals = goals;
       m_sz = sz;
+      m_rez = rez;
     }
 };

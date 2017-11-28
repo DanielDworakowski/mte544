@@ -71,7 +71,7 @@ void PRM::map_callback(
   }
   m_start.first /= m_res;
   m_start.second /= m_res;
-  m_g.setStartAndGoals(m_start, m_goals, sz);
+  m_g.setStartAndGoals( m_start, m_goals, sz, m_res);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -281,9 +281,9 @@ void PRM::vizPath(
   lines.action = visualization_msgs::Marker::ADD;
   lines.ns = "curves";
   lines.scale.x = 0.01;
-  lines.color.r = 0.2;
-  lines.color.b = 0.2;
-  lines.color.g = 1.0;
+  lines.color.r = 0.0;
+  lines.color.b = 0.0;
+  lines.color.g = 0.0;
   lines.color.a = 1.0;
 
   top = path.top();

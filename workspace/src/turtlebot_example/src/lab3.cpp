@@ -144,9 +144,9 @@ int main(int argc, char **argv) {
   // goals.push_back(std::make_pair(4,0));
   // goals.push_back(std::make_pair(8,-4)); // proper.
   // goals.push_back(std::make_pair(8,0));
-  goals.push_back(std::make_pair(4,2));
-  // goals.push_back(std::make_pair(8,4)); // proper.
-  // goals.push_back(std::make_pair(8,2));
+  //goals.push_back(std::make_pair(4,2));
+  //goals.push_back(std::make_pair(8,4)); // proper.
+  goals.push_back(std::make_pair(8,2));
 
 
   //
