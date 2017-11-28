@@ -52,6 +52,16 @@ public:
   // Publish map to rviz.
   void rviz(
   );
+  //
+  // Convert to real.
+  coord convtToReal(coord c) {
+    c.first *= m_res;
+    c.second *= m_res;
+    return c;
+  }
+  //
+  // The path.
+  std::stack<coord> m_path;
 
 private:
   //
@@ -106,9 +116,6 @@ private:
   //
   // The map.
   MatrixXu m_map;
-  //
-  // The path.
-  std::stack<coord> m_path;
   //
   // Collision Detection between 2 points
   bool collision (

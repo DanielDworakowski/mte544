@@ -133,12 +133,7 @@ int main(int argc, char **argv) {
   // goals.push_back(std::make_pair(8,0));
   //goals.push_back(std::make_pair(4,2));
   //goals.push_back(std::make_pair(8,4)); // proper.
-<<<<<<< HEAD
   goals.push_back(std::make_pair(5,8.5));
-
-
-=======
-  goals.push_back(std::make_pair(8,2));
   //
   // Setup topics to Publish from this node
   ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
@@ -152,7 +147,6 @@ int main(int argc, char **argv) {
   // Pose measurenment and ref
   geometry_msgs::PoseWithCovarianceStamped pose_meas;
   geometry_msgs::PoseWithCovarianceStamped pose_ref;
->>>>>>> 00321e7c8950bf6685ea8cd9738c563eb6de44ea
   //
   // RL.
   // goals.push_back(std::make_pair(1,3));
