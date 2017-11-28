@@ -31,8 +31,8 @@ public:
   // Constructor.
   PRM(
     ros::NodeHandle,
-    coord start,
-    std::vector<coord> goals
+    dcoord start,
+    std::vector<dcoord> goals
   );
   //
   // Destructor.
@@ -155,6 +155,12 @@ private:
   //
   // The list of goal locations.
   std::vector<coord> m_goals;
+  // 
+  // double start
+  dcoord m_dstart;
+  //
+  // The list of goal locations.
+  std::vector<dcoord> m_dgoals;
   //
   // The actual graph.
   Graph m_g;

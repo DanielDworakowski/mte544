@@ -10,6 +10,7 @@
 #include <limits>
 
 typedef std::pair<uint32_t, uint32_t> coord;
+typedef std::pair<double, double> dcoord;
 #define PRINT_CORD(c) std::cout << #c << " x: " << c.first << ", y: " << c.second << std::endl;
 #define FLATTEN(c) ((c).first * m_sz + (c).second)
 

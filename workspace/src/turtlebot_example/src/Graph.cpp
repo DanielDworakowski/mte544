@@ -53,11 +53,20 @@ std::queue<coord> Graph::aStar() {
     double tmpH = 0, tmpG = 0, tmpF = 0;
     //
     // startNode.loc = m_start;
+    if (m_vtx.find(m_start) == m_vtx.end()) {
+      std::cerr << "Count not find waypoint!!\n";
+      PRINT_CORD(m_start)
+      std::cerr << std::endl;
+    }
     startNode = *m_vtx[m_start];
     //
     //main loop that runs for 3 times
     for(auto & wayPoint : m_goals){
         std::stack<coord> bestPath;
+        if (m_vtx.find(wayPoint) == m_vtx.end()) {
+          std::cout << "Count not find waypoint!!\n";
+          PRINT_CORD(wayPoint)
+        }
         goalNode = *m_vtx[wayPoint];
         std::priority_queue<vertex *, std::vector<vertex*>, LessThanByFullCost> openList;
         uint32_t flat = 0;
@@ -126,15 +135,20 @@ std::queue<coord> Graph::aStar() {
         while(temp.loc != startNode.loc){
           //add to the list
           bestPath.push(temp.loc);
+          if (temp.parent == NULL) {
+            PRINT_CORD(temp.loc)
+            std::cerr << "NULL PARENT\n";
+          }
           temp = *temp.parent;
         }
         bestPath.push(temp.loc);
         tpath.push_back(bestPath);
-        #pragma message("Pass adjacency")
+
         startNode = *m_vtx[wayPoint];
         startNode.parent =  temp.parent;
         startNode.g = 0.0;
-        std::cout << "DONE A* loop\n";
+        std::cout << "DONE A* loop\n new goal\n";
+        PRINT_CORD(startNode.loc)
         delete visited;
     }
     //

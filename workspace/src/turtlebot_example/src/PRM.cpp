@@ -3,16 +3,16 @@
 ///////////////////////////////////////////////////////////////
 PRM::PRM(
   ros::NodeHandle n,
-  coord start,
-  std::vector<coord> goals
+  dcoord start,
+  std::vector<dcoord> goals
 )
  : m_n(n)
  , m_mapSub(m_n.subscribe("/map", 1, &PRM::map_callback, this))
  , m_markPub(m_n.advertise<visualization_msgs::Marker>("visualization_marker", 1, true))
  , m_trajPub(m_n.advertise<visualization_msgs::Marker>("traj", 2, true))
  , m_nodePub(m_n.advertise<geometry_msgs::PoseArray>("particle_pose_array", 10))
- , m_start(start)
- , m_goals(goals)
+ , m_dstart(start)
+ , m_dgoals(goals)
  , m_gen(m_rd())
  , m_dis(0., 1.)
 {
@@ -41,7 +41,7 @@ void PRM::reconfigure(
 {
   (void) level;
   m_nSamples = config.nSamples;
-  m_nSamples = 2000;
+  m_nSamples = 200;
   m_samples.resize(m_nSamples, 2);
   m_samples.setZero();
   m_cutoff_upper = config.cutoff_upper;
@@ -65,15 +65,19 @@ void PRM::map_callback(
   m_mapl = sz * m_res;
   m_nBins = sz;
   m_hasMap = true;
+  coord tmp;
   //
   // Translate the goal locations from physical coordinates to map coordinates.
-  for (auto & kv : m_goals) {
-    kv.first /= m_res;
-    kv.second /= m_res;
+  for (auto & kv : m_dgoals) {
+    tmp.first = kv.first / m_res;
+    tmp.second = kv.second / m_res;
+    m_goals.push_back(tmp);
   }
-  m_start.first /= m_res;
-  m_start.second /= m_res;
-  m_g.setStartAndGoals( m_start, m_goals, sz, m_res);
+
+  m_start.first = m_dstart.first / m_res;
+  m_start.second = m_dstart.second / m_res;
+
+  m_g.setStartAndGoals(m_start, m_goals, sz, m_res);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -91,6 +95,7 @@ void PRM::buildMap(
 
 )
 {
+  std::cout << "Building the map -- sample\n";
   MatrixXu sampled;
   Eigen::VectorXd sample(2);
   Eigen::MatrixXd dists(m_nSamples, m_nSamples);
@@ -110,6 +115,9 @@ void PRM::buildMap(
     y = kv.second;
     if (x >= m_nBins || y >= m_nBins) {
       std::cout << "Likely passed Negative goal locations will fail now.\n";
+    }
+    if (m_map(x,y) != 0) {
+      std::cerr << "\n\n\nMap location is in a boundary\n\n\n";
     }
     sampled(x, y) = 1;
     sample(0) = x;
@@ -134,11 +142,13 @@ void PRM::buildMap(
     m_samples.row(nSampled) = sample.transpose();
     ++nSampled;
   }
+  std::cout << "Building the map -- dist\n";
   getDists(m_samples, dists);
   dists *= m_res;
   comp = (dists.array() < m_cutoff_upper).array() * (dists.array() > m_cutoff_lower).array();
 
   I.conservativeResize(std::stable_partition(I.data(), I.data()+I.size(), [&comp](int i){return comp(i);})-I.data());
+  std::cout << "Building the map -- graph\n";
   //
   // Now that all of the sample points have been created, build the graph.
   buildGraph(I, dists);

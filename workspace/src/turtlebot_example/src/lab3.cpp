@@ -124,17 +124,29 @@ int main(int argc, char **argv) {
   f = boost::bind(&reconfigureCallback, _1, _2);
   //
   // PRM DO NOT REORDER TOO LAZY TO MAKE THIS WORK PROPERLY need reconfig to happen.
-  coord start = std::make_pair(1,5);
-  std::vector<coord> goals;
+  // coord start = std::make_pair(1,5); // sim 
+  #pragma message("Goals are integers...")
+  dcoord start = std::make_pair(3,0.5); // temp RL
+  std::vector<dcoord> goals;
+  //
+  // Simulation.
+  // double offsetX = 1.0;
+  // double offsetY = 5.0;
+  //
+  // Real life.
+  double offsetX = 0.0;
+  double offsetY = 0.0;
   //
   // SIM.
-  goals.push_back(std::make_pair(4+1,0+5));
-  goals.push_back(std::make_pair(8+1,-4+5)); // proper.
-  goals.push_back(std::make_pair(8+1,0+5));
-  //goals.push_back(std::make_pair(4,2));
-  //goals.push_back(std::make_pair(8,4)); // proper.
-  // goals.push_back(std::make_pair(5,8.5));
-  //
+  // goals.push_back(std::make_pair(4 + offsetX, 0 + offsetY));
+  // goals.push_back(std::make_pair(8 + offsetX,-4 + offsetY)); // proper.
+  // goals.push_back(std::make_pair(8 + offsetX, 0 + offsetY));
+  // //
+  // RL.
+  goals.push_back(std::make_pair(4.5,0.5));
+  goals.push_back(std::make_pair(3,3.5));
+  goals.push_back(std::make_pair(1,3)); // proper.
+  
   // Setup topics to Publish from this node
   ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
   //
@@ -173,6 +185,7 @@ int main(int argc, char **argv) {
     //   std::cout << "x_ref: " << x_ref << std::endl;
     //   std::cout << "y_ref: " << y_ref << std::endl;
     // }
+// #pragma message("uncomment!")
     while(!path_stack.empty()) {
       coord point = path_stack.front();
       path_stack.pop();
@@ -181,8 +194,8 @@ int main(int argc, char **argv) {
       {
         double x_meas = ips_x; // Robot X position
         double y_meas = ips_y; // Robot Y position
-        double x_ref = 0.1*point.first - 1; // Robot ref x position
-        double y_ref = 0.1*point.second - 5; // Robot ref y position
+        double x_ref = 0.1*point.first - offsetX; // Robot ref x position
+        double y_ref = 0.1*point.second - offsetY; // Robot ref y position
         double y_diff = y_ref - y_meas;
         double x_diff = x_ref - x_meas;
         dist_error = std::sqrt(std::pow(y_diff,2) + std::pow(x_diff,2));
