@@ -107,6 +107,9 @@ private:
   // The map.
   MatrixXu m_map;
   //
+  // The path.
+  std::stack<coord> m_path;
+  //
   // Collision Detection between 2 points
   bool collision (
     uint32_t,
@@ -131,7 +134,8 @@ private:
   double m_res = 0;
   //
   // The cut off for distance linking.
-  double m_cutoff = 0;
+  double m_cutoff_upper = 0;
+  double m_cutoff_lower = 0;
   //
   // The number of bins in one edge of the map.
   uint32_t m_nBins = 0;

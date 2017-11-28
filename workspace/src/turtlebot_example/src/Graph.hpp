@@ -7,6 +7,7 @@
 #include <queue>
 #include <cmath>
 #include <stdexcept>
+#include <limits>
 
 typedef std::pair<uint32_t, uint32_t> coord;
 #define PRINT_CORD(c) std::cout << #c << " x: " << c.first << ", y: " << c.second << std::endl;
@@ -19,7 +20,7 @@ struct vertex {
     coord loc;
     vertex(coord s) : loc(s) {}
     vertex *parent = NULL; //does it need to point to null?
-    double h=0.0,g=0.0,f=0.0; // h heuristic cost, g cost to go to that node + prev cost, f full cost
+    double h=0.0,g=0.0,f=std::numeric_limits<double>::max(); // h heuristic cost, g cost to go to that node + prev cost, f full cost
 };
 
 struct LessThanByFullCost{

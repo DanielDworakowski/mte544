@@ -41,12 +41,14 @@ void PRM::reconfigure(
 {
   (void) level;
   m_nSamples = config.nSamples;
-  m_nSamples = 100;
+  m_nSamples = 2000;
   m_samples.resize(m_nSamples, 2);
   m_samples.setZero();
-  m_cutoff = config.cutoff;
+  m_cutoff_upper = config.cutoff_upper;
+  m_cutoff_lower = config.cutoff_lower;
   #pragma message("REMOVE ME")
-  m_cutoff = 2;
+  m_cutoff_upper = 4;
+  m_cutoff_lower = 0.1;
   m_configured = true;
 }
 
@@ -114,7 +116,6 @@ void PRM::buildMap(
     sample(1) = y;
     m_samples.row(nSampled) = sample.transpose();
     ++nSampled;
-    PRINT_CORD(kv)
   }
   //
   // Start random sampling.
@@ -135,7 +136,8 @@ void PRM::buildMap(
   }
   getDists(m_samples, dists);
   dists *= m_res;
-  comp = dists.array() < m_cutoff;
+  comp = (dists.array() < m_cutoff_upper).array() * (dists.array() > m_cutoff_lower).array();
+
   I.conservativeResize(std::stable_partition(I.data(), I.data()+I.size(), [&comp](int i){return comp(i);})-I.data());
   //
   // Now that all of the sample points have been created, build the graph.
@@ -168,9 +170,6 @@ void PRM::buildGraph(
     dest = m_samples.row(y_idx);
     o = std::make_pair(origin(0), origin(1));
     d = std::make_pair(dest(0), dest(1));
-    if (o == m_start || d == m_start) {
-      std::cout << "O  / d \n";
-    }
     if (collision(origin(0), origin(1), dest(0), dest(1)) && !(o == m_start || d == m_start)) {
       continue;
     }
@@ -181,12 +180,10 @@ void PRM::buildGraph(
     m_g.addvertex(d);
     m_g.addedge(o, d, cost);
   }
-  // PRINT_MATRIX(m_samples)
-  m_g.print();
   rviz();
 
-  auto path = m_g.aStar();
-  vizPath(path);
+  m_path = m_g.aStar();
+  vizPath(m_path);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -260,7 +257,6 @@ void PRM::vizPath(
 )
 {
   coord top;
-  uint32_t cnt = 0;
   geometry_msgs::Point p;
   visualization_msgs::Marker lines;
   visualization_msgs::Marker deleteMsg;
@@ -276,14 +272,14 @@ void PRM::vizPath(
   //
   // Visualize connections.
   lines.header.frame_id = "/map";
-  lines.id = ++cnt; //each curve must have a unique id or you will overwrite an old ones
+  lines.id = 100; //each curve must have a unique id or you will overwrite an old ones
   lines.type = visualization_msgs::Marker::LINE_LIST;
   lines.action = visualization_msgs::Marker::ADD;
   lines.ns = "curves";
-  lines.scale.x = 0.01;
+  lines.scale.x = 0.08;
   lines.color.r = 0.0;
   lines.color.b = 0.0;
-  lines.color.g = 0.0;
+  lines.color.g = 1.0;
   lines.color.a = 1.0;
 
   top = path.top();
@@ -294,7 +290,6 @@ void PRM::vizPath(
 
   while (!path.empty()) {
     top = path.top();
-    PRINT_CORD(top)
     p.x = top.first * m_res;
     p.y = top.second * m_res;
     lines.points.push_back(p);
@@ -302,7 +297,6 @@ void PRM::vizPath(
     path.pop();
   }
   lines.points.pop_back();
-  std::cout << "l: " << lines << std::endl;
   m_trajPub.publish(lines);
 
 }

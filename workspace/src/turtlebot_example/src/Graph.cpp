@@ -49,6 +49,7 @@ std::stack<coord> Graph::aStar() {
     vertex goalNode(zeros), startNode(zeros), temp(zeros);
     bool goalReached = false;
     std::stack<coord> bestPath;
+    double tmpH = 0, tmpG = 0, tmpF = 0;
     //
     // startNode.loc = m_start;
     startNode = *m_vtx[m_start];
@@ -57,7 +58,6 @@ std::stack<coord> Graph::aStar() {
     for(auto & wayPoint : m_goals){
         goalNode = *m_vtx[wayPoint];
         std::priority_queue<vertex *, std::vector<vertex*>, LessThanByFullCost> openList;
-        std::vector<vertex*> closedList;
         uint32_t flat = 0;
         uint8_t * visited = new uint8_t[m_sz*m_sz];
         memset(visited, 0, m_sz*m_sz);
@@ -65,19 +65,11 @@ std::stack<coord> Graph::aStar() {
         openList.push(&startNode);
         //
         //
-        DEBUG_LINE
         while(!openList.empty()){
-          DEBUG_LINE
           //
           //pop top of the openList
           auto currentNode = openList.top();
           openList.pop();
-          //
-          //change to more effienceint
-          flat = FLATTEN(currentNode->loc);
-          if (visited[flat]) {
-            continue;
-          }
           //
           //things in the adjency list
           for(auto & aNode : currentNode->adj){
@@ -89,10 +81,17 @@ std::stack<coord> Graph::aStar() {
             }
             //
             //calculate costs
-            aNode.second->h =m_rez*(std::sqrt(std::pow((double(aNode.second->loc.first) - double(goalNode.loc.first)), 2)+std::pow((double(aNode.second->loc.second) - double(goalNode.loc.second)), 2)));
-            aNode.second->g = aNode.first + m_rez*(currentNode->g);
-            aNode.second->f = aNode.second->g + aNode.second->h;
-            // std::cout << "h cost: " << aNode.second->h << std::endl;
+            tmpH = m_rez*(std::sqrt(std::pow((double(aNode.second->loc.first) - double(goalNode.loc.first)), 2)+std::pow((double(aNode.second->loc.second) - double(goalNode.loc.second)), 2)));
+            tmpG = aNode.first + (currentNode->g);
+            tmpF = tmpG + tmpH;
+            //
+            // check if we found a better way to get to the node in the list.
+            if (tmpF > aNode.second->f) {
+              continue;
+            }
+            aNode.second->h = tmpH;
+            aNode.second->g = tmpG;
+            aNode.second->f = tmpF;
             //point parent to currentNode
             aNode.second->parent = currentNode;
             //
@@ -101,7 +100,6 @@ std::stack<coord> Graph::aStar() {
           }
           //
           //push currentNode to closed list
-          closedList.push_back(currentNode);
           flat = FLATTEN(currentNode->loc);
           visited[flat] = 1;
           //
@@ -109,7 +107,6 @@ std::stack<coord> Graph::aStar() {
           if(currentNode->loc == goalNode.loc){
               goalNode = *currentNode; // update to get cost and parent
               goalReached = 1;
-              DEBUG_LINE
               break;
           }
         }
@@ -124,7 +121,6 @@ std::stack<coord> Graph::aStar() {
         temp = goalNode;
         //
         //decrale a list of flots
-        DEBUG_LINE
         while(temp.loc != startNode.loc){
           //add to the list
           bestPath.push(temp.loc);
