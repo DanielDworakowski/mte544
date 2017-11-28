@@ -124,16 +124,16 @@ int main(int argc, char **argv) {
   f = boost::bind(&reconfigureCallback, _1, _2);
   //
   // PRM DO NOT REORDER TOO LAZY TO MAKE THIS WORK PROPERLY need reconfig to happen.
-  coord start = std::make_pair(0,0);
+  coord start = std::make_pair(1,5);
   std::vector<coord> goals;
   //
   // SIM.
-  // goals.push_back(std::make_pair(4,0));
-  // goals.push_back(std::make_pair(8,-4)); // proper.
-  // goals.push_back(std::make_pair(8,0));
+  goals.push_back(std::make_pair(4+1,0+5));
+  goals.push_back(std::make_pair(8+1,-4+5)); // proper.
+  goals.push_back(std::make_pair(8+1,0+5));
   //goals.push_back(std::make_pair(4,2));
   //goals.push_back(std::make_pair(8,4)); // proper.
-  goals.push_back(std::make_pair(5,8.5));
+  // goals.push_back(std::make_pair(5,8.5));
   //
   // Setup topics to Publish from this node
   ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
@@ -158,36 +158,55 @@ int main(int argc, char **argv) {
 
   // Loop.
   while (ros::ok()) {
-  	loop_rate.sleep(); //Maintain the loop rate
-  	ros::spinOnce();   //Check for new messages
+
 
     ////////////////// Follow Path ////////////////////////////
-    // Eigen::MatrixXd path_matrix;
-    // double dist_error;
-    // double min_dist_error = 0.1;
-    // int num_points = path_matrix.rows();
-    // for (int i = 0; i < num_points; ++i) {
-    //   do
-    //   {
-    //     double x_meas = ips_x; // Robot X position
-    //     double y_meas = ips_y; // Robot Y position
-    //     double x_ref = path_matrix(i, 0); // Robot ref x position
-    //     double y_ref = path_matrix(i, 1); // Robot ref y position
-    //     double y_diff = y_ref - y_meas;
-    //     double x_diff = x_ref - x_meas;
-    //     dist_error = std::sqrt(std::pow(y_diff,2) + std::pow(x_diff,2));
-
-    //     //Main loop code goes here:
-    //     pose_meas.pose.pose.position.x = ips_x;
-    //     pose_meas.pose.pose.position.y = ips_y;
-    //     pose_meas.pose.pose.orientation = ips_orientation;
-    //     pose_ref.pose.pose.position.x = x_ref;
-    //     pose_ref.pose.pose.position.y = y_ref;
-    //     vel = pose_ctrlr.get_vel(pose_meas, pose_ref);
-
-    //     velocity_publisher.publish(vel); // Publish the command velocity
-    //   }while(dist_error > min_dist_error);
+    std::queue<coord> path_stack = g_prm->m_paths;
+    double dist_error;
+    double min_dist_error = 0.2;
+    // while(!path_stack.empty())
+    // {
+    //   coord point = path_stack.top();
+    //   path_stack.pop();
+    //   double x_ref = point.first; // Robot ref x position
+    //   double y_ref = point.second; // Robot ref y position
+    //   std::cout << "x_ref: " << x_ref << std::endl;
+    //   std::cout << "y_ref: " << y_ref << std::endl;
     // }
+    while(!path_stack.empty()) {
+      coord point = path_stack.front();
+      path_stack.pop();
+      std::cout << "tru" << '\n';
+      do
+      {
+        double x_meas = ips_x; // Robot X position
+        double y_meas = ips_y; // Robot Y position
+        double x_ref = 0.1*point.first - 1; // Robot ref x position
+        double y_ref = 0.1*point.second - 5; // Robot ref y position
+        double y_diff = y_ref - y_meas;
+        double x_diff = x_ref - x_meas;
+        dist_error = std::sqrt(std::pow(y_diff,2) + std::pow(x_diff,2));
+        // std::cout << dist_error << '\n';
+        //Main loop code goes here:
+        pose_meas.pose.pose.position.x = ips_x;
+        pose_meas.pose.pose.position.y = ips_y;
+        pose_meas.pose.pose.orientation = ips_orientation;
+        pose_ref.pose.pose.position.x = x_ref;
+        pose_ref.pose.pose.position.y = y_ref;
+        vel = pose_ctrlr.get_vel(pose_meas, pose_ref);
+        // std::cout << "----------------" << std::endl;
+        // std::cout << "x_meas: " << x_meas << std::endl;
+        // std::cout << "x_ref: " << x_ref << std::endl;
+        // std::cout << "y_meas: " << y_meas << std::endl;
+        // std::cout << "y_ref: " << y_ref << std::endl;
+        // std::cout << "dist_error: " << dist_error << std::endl;
+        // std::cout << vel << '\n';
+
+        velocity_publisher.publish(vel); // Publish the command velocity
+        loop_rate.sleep(); //Maintain the loop rate
+      	ros::spinOnce();   //Check for new messages
+      }while(dist_error > min_dist_error);
+    }
   }
 
   delete g_prm;

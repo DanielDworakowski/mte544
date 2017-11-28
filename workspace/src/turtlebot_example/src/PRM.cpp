@@ -170,7 +170,7 @@ void PRM::buildGraph(
     dest = m_samples.row(y_idx);
     o = std::make_pair(origin(0), origin(1));
     d = std::make_pair(dest(0), dest(1));
-    if (collision(origin(0), origin(1), dest(0), dest(1)) && !(o == m_start || d == m_start)) {
+    if (collision(origin(0), origin(1), dest(0), dest(1)) /*&& !(o == m_start || d == m_start)*/) {
       continue;
     }
     cost = dists(x_idx, y_idx);
