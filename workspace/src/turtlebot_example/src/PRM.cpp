@@ -253,7 +253,7 @@ void PRM::vizNodes(
 
 ///////////////////////////////////////////////////////////////
 void PRM::vizPath(
-  std::vector<std::stack<coord> > paths
+  std::queue<coord> path
 )
 {
   coord top;
@@ -282,23 +282,23 @@ void PRM::vizPath(
   lines.color.g = 1.0;
   lines.color.a = 1.0;
 
-  for (auto & path : paths) {
-    top = path.top();
-    path.pop();
+
+  top = path.front();
+  path.pop();
+  p.x = top.first * m_res;
+  p.y = top.second * m_res;
+  lines.points.push_back(p);
+
+  while (!path.empty()) {
+    top = path.front();
     p.x = top.first * m_res;
     p.y = top.second * m_res;
     lines.points.push_back(p);
-
-    while (!path.empty()) {
-      top = path.top();
-      p.x = top.first * m_res;
-      p.y = top.second * m_res;
-      lines.points.push_back(p);
-      lines.points.push_back(p);
-      path.pop();
-    }
-    lines.points.pop_back();
+    lines.points.push_back(p);
+    path.pop();
   }
+  lines.points.pop_back();
+
   m_trajPub.publish(lines);
 
 }

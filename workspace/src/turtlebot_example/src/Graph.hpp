@@ -38,7 +38,7 @@ public:
     void addvertex(const coord&);
     void addedge(const coord& from, const coord& to, double cost);
     void print();
-    std::vector<std::stack<coord>> aStar();
+    std::queue<coord> aStar();
     //
     // locations of the start and goals.
     coord m_start;

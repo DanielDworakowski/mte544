@@ -42,13 +42,14 @@ void Graph::print (
 }
 //
 ///////////////////// A* algorithm////////////////////////////
-std::vector<std::stack<coord>> Graph::aStar() {
+std::queue<coord> Graph::aStar() {
     //
     //
-    coord zeros = std::make_pair(0,0);
+    coord zeros = std::make_pair(0,0), tempCoord = std::make_pair(0,0);
     vertex goalNode(zeros), startNode(zeros), temp(zeros);
     bool goalReached = false;
     std::vector<std::stack<coord>> tpath;
+    std::queue<coord> finalPath;
     double tmpH = 0, tmpG = 0, tmpF = 0;
     //
     // startNode.loc = m_start;
@@ -136,6 +137,15 @@ std::vector<std::stack<coord>> Graph::aStar() {
         std::cout << "DONE A* loop\n";
         delete visited;
     }
-
-    return tpath;
+    //
+    //transfrom from vector of stacks to a vector
+    for(auto & goalz : tpath){
+      while(!goalz.empty()){
+        tempCoord = goalz.top();
+        goalz.pop();
+        finalPath.push(tempCoord);
+      }
+    }
+    //
+    return finalPath;
 }
