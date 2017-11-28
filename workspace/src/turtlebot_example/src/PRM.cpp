@@ -182,8 +182,8 @@ void PRM::buildGraph(
   }
   rviz();
 
-  m_path = m_g.aStar();
-  vizPath(m_path);
+  m_paths = m_g.aStar();
+  vizPath(m_paths);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -253,7 +253,7 @@ void PRM::vizNodes(
 
 ///////////////////////////////////////////////////////////////
 void PRM::vizPath(
-  std::stack<coord> path
+  std::vector<std::stack<coord> > paths
 )
 {
   coord top;
@@ -282,21 +282,23 @@ void PRM::vizPath(
   lines.color.g = 1.0;
   lines.color.a = 1.0;
 
-  top = path.top();
-  path.pop();
-  p.x = top.first * m_res;
-  p.y = top.second * m_res;
-  lines.points.push_back(p);
-
-  while (!path.empty()) {
+  for (auto & path : paths) {
     top = path.top();
+    path.pop();
     p.x = top.first * m_res;
     p.y = top.second * m_res;
     lines.points.push_back(p);
-    lines.points.push_back(p);
-    path.pop();
+
+    while (!path.empty()) {
+      top = path.top();
+      p.x = top.first * m_res;
+      p.y = top.second * m_res;
+      lines.points.push_back(p);
+      lines.points.push_back(p);
+      path.pop();
+    }
+    lines.points.pop_back();
   }
-  lines.points.pop_back();
   m_trajPub.publish(lines);
 
 }

@@ -61,7 +61,7 @@ public:
   }
   //
   // The path.
-  std::stack<coord> m_path;
+  std::vector<std::stack<coord> > m_paths;
 
 private:
   //
@@ -89,7 +89,7 @@ private:
   //
   // Rviz the graph nodes.
   void vizPath (
-    std::stack<coord> path
+    std::vector<std::stack<coord> > path
   );
   //
   // Map expansion

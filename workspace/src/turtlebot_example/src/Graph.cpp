@@ -42,13 +42,13 @@ void Graph::print (
 }
 //
 ///////////////////// A* algorithm////////////////////////////
-std::stack<coord> Graph::aStar() {
+std::vector<std::stack<coord>> Graph::aStar() {
     //
     //
     coord zeros = std::make_pair(0,0);
     vertex goalNode(zeros), startNode(zeros), temp(zeros);
     bool goalReached = false;
-    std::stack<coord> bestPath;
+    std::vector<std::stack<coord>> tpath;
     double tmpH = 0, tmpG = 0, tmpF = 0;
     //
     // startNode.loc = m_start;
@@ -56,6 +56,7 @@ std::stack<coord> Graph::aStar() {
     //
     //main loop that runs for 3 times
     for(auto & wayPoint : m_goals){
+        std::stack<coord> bestPath;
         goalNode = *m_vtx[wayPoint];
         std::priority_queue<vertex *, std::vector<vertex*>, LessThanByFullCost> openList;
         uint32_t flat = 0;
@@ -127,6 +128,7 @@ std::stack<coord> Graph::aStar() {
           temp = *temp.parent;
         }
         bestPath.push(temp.loc);
+        tpath.push_back(bestPath);
         #pragma message("Pass adjacency")
         startNode = *m_vtx[wayPoint];
         startNode.parent =  temp.parent;
@@ -135,5 +137,5 @@ std::stack<coord> Graph::aStar() {
         delete visited;
     }
 
-    return bestPath;
+    return tpath;
 }
