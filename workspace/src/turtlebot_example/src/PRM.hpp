@@ -32,7 +32,9 @@ public:
   PRM(
     ros::NodeHandle,
     dcoord start,
-    std::vector<dcoord> goals
+    std::vector<dcoord> goals,
+    double ox,
+    double oy
   );
   //
   // Destructor.
@@ -155,7 +157,7 @@ private:
   //
   // The list of goal locations.
   std::vector<coord> m_goals;
-  // 
+  //
   // double start
   dcoord m_dstart;
   //
@@ -169,4 +171,6 @@ private:
   std::random_device m_rd;  // Will be used to obtain a seed for the random number engine
   std::mt19937 m_gen; // Standard mersenne_twister_engine seeded with rd()
   std::uniform_real_distribution<> m_dis;
+  double offsetX;
+  double offsetY;
 };

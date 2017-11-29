@@ -227,12 +227,14 @@ class DEFAULT
         (*_i)->getValue(config, val);
 
         if("nSamples"==(*_i)->name){nSamples = boost::any_cast<int>(val);}
-        if("cutoff"==(*_i)->name){cutoff = boost::any_cast<int>(val);}
+        if("cutoff_upper"==(*_i)->name){cutoff_upper = boost::any_cast<double>(val);}
+        if("cutoff_lower"==(*_i)->name){cutoff_lower = boost::any_cast<double>(val);}
       }
     }
 
     int nSamples;
-int cutoff;
+double cutoff_upper;
+double cutoff_lower;
 
     bool state;
     std::string name;
@@ -245,7 +247,9 @@ int cutoff;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       int nSamples;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
-      int cutoff;
+      double cutoff_upper;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      double cutoff_lower;
 //#line 218 "/opt/ros/kinetic/share/dynamic_reconfigure/templates/ConfigType.h.template"
 
     bool __fromMessage__(dynamic_reconfigure::Config &msg)
@@ -395,15 +399,25 @@ lab3Config::GroupDescription<lab3Config::DEFAULT, lab3Config> Default("Default",
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       __param_descriptions__.push_back(lab3Config::AbstractParamDescriptionConstPtr(new lab3Config::ParamDescription<int>("nSamples", "int", 0, "nSamples.", "", &lab3Config::nSamples)));
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
-      __min__.cutoff = 0;
+      __min__.cutoff_upper = 0.0;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
-      __max__.cutoff = 1000000;
+      __max__.cutoff_upper = 1000000.0;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
-      __default__.cutoff = 1;
+      __default__.cutoff_upper = 1.0;
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
-      Default.abstract_parameters.push_back(lab3Config::AbstractParamDescriptionConstPtr(new lab3Config::ParamDescription<int>("cutoff", "int", 0, "cut off of distance for connections.", "", &lab3Config::cutoff)));
+      Default.abstract_parameters.push_back(lab3Config::AbstractParamDescriptionConstPtr(new lab3Config::ParamDescription<double>("cutoff_upper", "double", 0, "cut off of distance for connections.", "", &lab3Config::cutoff_upper)));
 //#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
-      __param_descriptions__.push_back(lab3Config::AbstractParamDescriptionConstPtr(new lab3Config::ParamDescription<int>("cutoff", "int", 0, "cut off of distance for connections.", "", &lab3Config::cutoff)));
+      __param_descriptions__.push_back(lab3Config::AbstractParamDescriptionConstPtr(new lab3Config::ParamDescription<double>("cutoff_upper", "double", 0, "cut off of distance for connections.", "", &lab3Config::cutoff_upper)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __min__.cutoff_lower = 0.0;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __max__.cutoff_lower = 1000000.0;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __default__.cutoff_lower = 0.1;
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(lab3Config::AbstractParamDescriptionConstPtr(new lab3Config::ParamDescription<double>("cutoff_lower", "double", 0, "cut off of distance for connections.", "", &lab3Config::cutoff_lower)));
+//#line 273 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(lab3Config::AbstractParamDescriptionConstPtr(new lab3Config::ParamDescription<double>("cutoff_lower", "double", 0, "cut off of distance for connections.", "", &lab3Config::cutoff_lower)));
 //#line 245 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"
       Default.convertParams();
 //#line 245 "/opt/ros/kinetic/lib/python2.7/dist-packages/dynamic_reconfigure/parameter_generator.py"

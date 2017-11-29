@@ -3,5 +3,6 @@
 Reads and maintains the following parameters on the ROS server
 
 - \b "~nSamples" : \b [int] nSamples. min: 1, default: 10000, max: 1000000
-- \b "~cutoff" : \b [int] cut off of distance for connections. min: 0, default: 1, max: 1000000
+- \b "~cutoff_upper" : \b [double] cut off of distance for connections. min: 0.0, default: 1.0, max: 1000000.0
+- \b "~cutoff_lower" : \b [double] cut off of distance for connections. min: 0.0, default: 0.1, max: 1000000.0
 

@@ -158,6 +158,7 @@ std::queue<coord> Graph::aStar() {
         tempCoord = goalz.top();
         goalz.pop();
         finalPath.push(tempCoord);
+        PRINT_CORD(tempCoord)
       }
     }
     //

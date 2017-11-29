@@ -25,7 +25,7 @@ void Visualizer::visualize_particle(Eigen::MatrixXd particle_matrix)
 	geometry_msgs::PoseArray particles;
 	geometry_msgs::Pose pose;
 	particles.header.stamp = ros::Time::now();
-    particles.header.frame_id = "/odom";
+    particles.header.frame_id = "/map";
     int num_particles = particle_matrix.cols();
     for (int i = 0; i < num_particles; ++i) {
     	double x = particle_matrix(0,i);
@@ -43,7 +43,7 @@ void Visualizer::visualize_particle(Eigen::MatrixXd particle_matrix)
 void Visualizer::visualize_path(geometry_msgs::Pose pose)
 {
   path.header.stamp = ros::Time::now();
-  path.header.frame_id = "/odom";
+  path.header.frame_id = "/map";
   path.poses.push_back(pose);
   path_pub.publish(path);
 

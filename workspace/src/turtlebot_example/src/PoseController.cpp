@@ -45,36 +45,41 @@ geometry_msgs::Twist PoseController::get_vel(
 
   if (yaw_error < 0.1 && std::abs(dist)>0.2)
   {
-    vel.linear.x = 1.0; // set linear speed
+    vel.linear.x = 0.2; // set linear speed
   }
   else
   {
     vel.linear.x = 0.0;
   }
   vel.angular.z = sign*0.5*(yaw_ratio_ref - yaw_ratio_meas); // set angular speed
-  if (vel.angular.z > 0.4)
-    vel.angular.z = 0.4;
-  if (vel.angular.z < -0.4)
-    vel.angular.z = -0.4;
+  if (vel.angular.z > 0.1)
+    vel.angular.z = 0.1;
+  if (vel.angular.z < -0.1)
+    vel.angular.z = -0.1;
   // vel.angular.z = sign*yaw_pid.getCmd(yaw_ratio_ref, yaw_ratio_meas); // set angular speed
-  if((y_diff>0 && yaw_meas<0) || (y_diff<0 && yaw_meas>0))
+  if((y_diff>0 && yaw_meas<0))
   {
-    vel.angular.z = 0.4;
+    vel.angular.z = -0.1;
+    vel.linear.x = 0.0;
+  }
+  else if((y_diff<0 && yaw_meas>0))
+  {
+    vel.angular.z = 0.5;
     vel.linear.x = 0.0;
   }
 
-  std::cout << "----------------" << std::endl;
-  std::cout << "x_meas: " << x_meas << std::endl;
-  std::cout << "x_ref: " << x_ref << std::endl;
-  std::cout << "y_meas: " << y_meas << std::endl;
-  std::cout << "y_ref: " << y_ref << std::endl;
-  std::cout << "yaw_ratio_ref: " << yaw_ratio_ref << std::endl;
-  std::cout << "yaw_ratio_meas: " << yaw_ratio_meas << std::endl;
-  std::cout << "yaw_meas: " << yaw_meas << std::endl;
-  std::cout << "dist: " << std::abs(dist) << std::endl;
-  std::cout << "yaw_error: " << yaw_error << std::endl;
-  std::cout << "yaw_u: " << vel.angular.z << std::endl;
-  std::cout << "x_u: " << vel.linear.x << std::endl;
+  // std::cout << "----------------" << std::endl;
+  // std::cout << "x_meas: " << x_meas << std::endl;
+  // std::cout << "x_ref: " << x_ref << std::endl;
+  // std::cout << "y_meas: " << y_meas << std::endl;
+  // std::cout << "y_ref: " << y_ref << std::endl;
+  // std::cout << "yaw_ratio_ref: " << yaw_ratio_ref << std::endl;
+  // std::cout << "yaw_ratio_meas: " << yaw_ratio_meas << std::endl;
+  // std::cout << "yaw_meas: " << yaw_meas << std::endl;
+  // std::cout << "dist: " << std::abs(dist) << std::endl;
+  // std::cout << "yaw_error: " << yaw_error << std::endl;
+  // std::cout << "yaw_u: " << vel.angular.z << std::endl;
+  // std::cout << "x_u: " << vel.linear.x << std::endl;
 
   return vel;
 }

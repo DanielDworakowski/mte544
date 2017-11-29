@@ -4,7 +4,9 @@
 PRM::PRM(
   ros::NodeHandle n,
   dcoord start,
-  std::vector<dcoord> goals
+  std::vector<dcoord> goals,
+  double ox,
+  double oy
 )
  : m_n(n)
  , m_mapSub(m_n.subscribe("/map", 1, &PRM::map_callback, this))
@@ -15,6 +17,8 @@ PRM::PRM(
  , m_dgoals(goals)
  , m_gen(m_rd())
  , m_dis(0., 1.)
+ , offsetX(ox)
+ , offsetY(oy)
 {
   //
   // Set the loop rate
@@ -113,6 +117,7 @@ void PRM::buildMap(
   for (auto & kv : tmpGoals) {
     x = kv.first;
     y = kv.second;
+    PRINT_CORD(kv)
     if (x >= m_nBins || y >= m_nBins) {
       std::cout << "Likely passed Negative goal locations will fail now.\n";
     }
@@ -228,10 +233,10 @@ void PRM::rviz(
   lines.color.a = 1.0;
   for (auto & kv : m_g.m_vtx) {
     for (auto & vtx : kv.second->adj) {
-      p.x = kv.first.first * m_res;
-      p.y = kv.first.second * m_res;
-      p2.x = vtx.second->loc.first * m_res;
-      p2.y = vtx.second->loc.second * m_res;
+      p.x = kv.first.first * m_res -offsetX;
+      p.y = kv.first.second * m_res -offsetY;
+      p2.x = vtx.second->loc.first * m_res -offsetX;
+      p2.y = vtx.second->loc.second * m_res -offsetY;
       lines.points.push_back(p);
       lines.points.push_back(p2);
     }
@@ -252,8 +257,8 @@ void PRM::vizNodes(
   for (int i = 0; i < num_particles; ++i) {
   	double x = particle_matrix(i, 0);
   	double y = particle_matrix(i, 1);
-  	pose.position.x = x * m_res;
-  	pose.position.y = y * m_res;
+  	pose.position.x = x * m_res -offsetX;
+  	pose.position.y = y * m_res -offsetY;
   	pose.position.z = 0.0;
   	pose.orientation = tf::createQuaternionMsgFromYaw(0);
     particles.poses.push_back(pose);
@@ -295,19 +300,23 @@ void PRM::vizPath(
 
   top = path.front();
   path.pop();
-  p.x = top.first * m_res;
-  p.y = top.second * m_res;
+  p.x = top.first * m_res -offsetX;
+  p.y = top.second * m_res -offsetY;
   lines.points.push_back(p);
 
   while (!path.empty()) {
     top = path.front();
-    p.x = top.first * m_res;
-    p.y = top.second * m_res;
+    p.x = top.first * m_res -offsetX;
+    p.y = top.second * m_res -offsetY;
+    // p.x = top.first * m_res ;
+    // p.y = top.second * m_res  ;
     lines.points.push_back(p);
     lines.points.push_back(p);
     path.pop();
   }
   lines.points.pop_back();
+
+  std::cout << lines << std::endl;
 
   m_trajPub.publish(lines);
 

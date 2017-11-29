@@ -29,7 +29,7 @@ PRM * g_prm = NULL;
 #define TAGID 0
 
 
-double ips_x;
+double ips_x = 999;
 double ips_y;
 double ips_yaw;
 geometry_msgs::Quaternion ips_orientation;
@@ -38,12 +38,14 @@ geometry_msgs::Quaternion ips_orientation;
 
 void pose_callback(const geometry_msgs::PoseWithCovarianceStamped & msg) {
 	//This function is called when a new position message is received
-	double X = msg.pose.pose.position.x; // Robot X psotition
-	double Y = msg.pose.pose.position.y; // Robot Y psotition
- 	double Yaw = tf::getYaw(msg.pose.pose.orientation); // Robot Yaw
+	ips_x = msg.pose.pose.position.x; // Robot X psotition
+	ips_y = msg.pose.pose.position.y; // Robot Y psotition
+ 	ips_yaw = tf::getYaw(msg.pose.pose.orientation); // Robot Yaw
+	ips_orientation  = msg.pose.pose.orientation;
 
-	std::cout << "X: " << X << ", Y: " << Y << ", Yaw: " << Yaw << std::endl ;
+	std::cout << "X: " << ips_x << ", Y: " << ips_y << ", Yaw: " << ips_yaw << std::endl ;
 }
+
 
 //Callback function for the Position topic (SIMULATION)
 void pose_callback_sim(const gazebo_msgs::ModelStates& msg)
@@ -113,8 +115,10 @@ int main(int argc, char **argv) {
   ros::NodeHandle n;
   //
   // Subscribe to the desired topics and assign callbacks
-  // ros::Subscriber pose_sub = n.subscribe("/indoor_pos", 1, pose_callback);
-  ros::Subscriber pose_sub = n.subscribe("/gazebo/model_states", 1, pose_callback_sim);
+  ros::Subscriber pose_sub = n.subscribe("/indoor_pos", 1, pose_callback);
+	geometry_msgs::Pose pose_ips;
+	ros::Publisher ips_pose_publisher = n.advertise<geometry_msgs::PoseArray>("ips_posei", 1);
+  // ros::Subscriber pose_sub = n.subscribe("/gazebo/model_states", 1, pose_callback_sim);
   // Set the loop rate
   ros::Rate loop_rate(20);    //20Hz update rate
   //
@@ -124,9 +128,16 @@ int main(int argc, char **argv) {
   f = boost::bind(&reconfigureCallback, _1, _2);
   //
   // PRM DO NOT REORDER TOO LAZY TO MAKE THIS WORK PROPERLY need reconfig to happen.
-  // coord start = std::make_pair(1,5); // sim 
+  // coord start = std::make_pair(1,5); // sim
   #pragma message("Goals are integers...")
-  dcoord start = std::make_pair(3,0.5); // temp RL
+	while(ips_x>=999)
+	{
+		ros::spinOnce();   //Check for new messages
+	}
+	double offsetX = 1.0;
+	double offsetY = 3.0;
+	dcoord start = std::make_pair(ips_x+offsetX, ips_y+offsetY); // temp RL
+  // dcoord start = std::make_pair(ips_x + offsetX,ips_y+offsetY); // temp RL
   std::vector<dcoord> goals;
   //
   // Simulation.
@@ -134,8 +145,7 @@ int main(int argc, char **argv) {
   // double offsetY = 5.0;
   //
   // Real life.
-  double offsetX = 0.0;
-  double offsetY = 0.0;
+
   //
   // SIM.
   // goals.push_back(std::make_pair(4 + offsetX, 0 + offsetY));
@@ -143,12 +153,17 @@ int main(int argc, char **argv) {
   // goals.push_back(std::make_pair(8 + offsetX, 0 + offsetY));
   // //
   // RL.
-  goals.push_back(std::make_pair(4.5,0.5));
-  goals.push_back(std::make_pair(3,3.5));
-  goals.push_back(std::make_pair(1,3)); // proper.
-  
+	// goals.push_back(std::make_pair(2 ,0.5));
+	goals.push_back(std::make_pair(1 ,3));
+	goals.push_back(std::make_pair(3 ,3.5));
+	goals.push_back(std::make_pair(4.5 ,0.5));
+  // goals.push_back(std::make_pair(2 + 1,0.5+3));
+  // goals.push_back(std::make_pair(0 + 1,0+3)); // proper.
+	// goals.push_back(std::make_pair(3.5 + 1,-2.5+3));
+
   // Setup topics to Publish from this node
-  ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
+	// ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
+  ros::Publisher velocity_publisher = n.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1);
   //
   // Velocity control variable
   geometry_msgs::Twist vel;
@@ -164,13 +179,15 @@ int main(int argc, char **argv) {
   // goals.push_back(std::make_pair(1,3));
   // goals.push_back(std::make_pair(3,3.5));
   // goals.push_back(std::make_pair(4.5,0.5));
-  g_prm = new PRM(n, start, goals);
+  g_prm = new PRM(n, start, goals, offsetX, offsetY);
   srv.setCallback(f);
   g_prm->buildMap();
 
   // Loop.
   while (ros::ok()) {
 
+    loop_rate.sleep(); //Maintain the loop rate
+  	ros::spinOnce();   //Check for new messages
 
     ////////////////// Follow Path ////////////////////////////
     std::queue<coord> path_stack = g_prm->m_paths;
@@ -179,19 +196,27 @@ int main(int argc, char **argv) {
     // while(!path_stack.empty())
     // {
     //   coord point = path_stack.top();
-    //   path_stack.pop();
+    //   path_stack.pop();vel
     //   double x_ref = point.first; // Robot ref x position
     //   double y_ref = point.second; // Robot ref y position
     //   std::cout << "x_ref: " << x_ref << std::endl;
     //   std::cout << "y_ref: " << y_ref << std::endl;
     // }
 // #pragma message("uncomment!")
-    while(!path_stack.empty()) {
+    while(!path_stack.empty() && ros::ok()) {
       coord point = path_stack.front();
       path_stack.pop();
-      std::cout << "tru" << '\n';
+      // std::cout << "tru" << '\n';
       do
       {
+				geometry_msgs::PoseArray particles;
+				particles.header.frame_id = "/map";
+				pose_ips.position.x = ips_x;
+				pose_ips.position.y = ips_y;
+				pose_ips.position.z = 0.0;
+				pose_ips.orientation = tf::createQuaternionMsgFromYaw(ips_yaw);
+				particles.poses.push_back(pose_ips);
+				ips_pose_publisher.publish(particles);
         double x_meas = ips_x; // Robot X position
         double y_meas = ips_y; // Robot Y position
         double x_ref = 0.1*point.first - offsetX; // Robot ref x position
@@ -213,12 +238,14 @@ int main(int argc, char **argv) {
         // std::cout << "y_meas: " << y_meas << std::endl;
         // std::cout << "y_ref: " << y_ref << std::endl;
         // std::cout << "dist_error: " << dist_error << std::endl;
-        // std::cout << vel << '\n';
+        // std::cout << ips_orientation << '\n';
+				// std::cout << vel << '\n';
+
 
         velocity_publisher.publish(vel); // Publish the command velocity
         loop_rate.sleep(); //Maintain the loop rate
       	ros::spinOnce();   //Check for new messages
-      }while(dist_error > min_dist_error);
+      }while(dist_error > min_dist_error && ros::ok());
     }
   }
 

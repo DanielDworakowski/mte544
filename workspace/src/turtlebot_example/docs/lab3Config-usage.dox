@@ -2,7 +2,8 @@
 \verbatim
 <node name="dynamic_reconfigure_node" pkg="turtlebot_example" type="dynamic_reconfigure_node">
   <param name="nSamples" type="int" value="10000" />
-  <param name="cutoff" type="int" value="1" />
+  <param name="cutoff_upper" type="double" value="1.0" />
+  <param name="cutoff_lower" type="double" value="0.1" />
 </node>
 \endverbatim
 
