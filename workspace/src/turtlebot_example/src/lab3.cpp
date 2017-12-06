@@ -114,6 +114,8 @@ int main(int argc, char **argv) {
   //
   // Subscribe to the desired topics and assign callbacks
   // ros::Subscriber pose_sub = n.subscribe("/indoor_pos", 1, pose_callback);
+  geometry_msgs::Pose pose_ips;
+  ros::Publisher ips_pose_publisher = n.advertise<geometry_msgs::PoseArray>("ips_posei", 1);
   ros::Subscriber pose_sub = n.subscribe("/gazebo/model_states", 1, pose_callback_sim);
   // Set the loop rate
   ros::Rate loop_rate(20);    //20Hz update rate
@@ -173,12 +175,20 @@ int main(int argc, char **argv) {
     //   std::cout << "x_ref: " << x_ref << std::endl;
     //   std::cout << "y_ref: " << y_ref << std::endl;
     // }
+    geometry_msgs::PoseArray particles;
+    particles.header.frame_id = "/map";
     while(!path_stack.empty()) {
       coord point = path_stack.front();
       path_stack.pop();
       std::cout << "tru" << '\n';
       do
       {
+        pose_ips.position.x = ips_x;
+        pose_ips.position.y = ips_y;
+        pose_ips.position.z = 0.0;
+        pose_ips.orientation = tf::createQuaternionMsgFromYaw(ips_yaw);
+        particles.poses.push_back(pose_ips);
+        ips_pose_publisher.publish(particles);
         double x_meas = ips_x; // Robot X position
         double y_meas = ips_y; // Robot Y position
         double x_ref = 0.1*point.first - 1; // Robot ref x position
