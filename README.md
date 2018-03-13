@@ -1,5 +1,7 @@
 # MTE544
 
+C++ implementation for turtlebot control, occupancy grid creation, motion planning and state estimation. 
+
 # Install
 
 Install docker
